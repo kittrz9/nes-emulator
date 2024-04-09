@@ -56,9 +56,12 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
 	switch(addr) {
+		case 0x2002:
+			// always have vblank flag on for now
+			// needs to be changed
+			return 0x80;
 		case 0x2000:
 		case 0x2001:
-		case 0x2002:
 		case 0x2003:
 		case 0x2004:
 		case 0x2005:
@@ -85,7 +88,7 @@ uint8_t ramReadByte(uint16_t addr) {
 			printf("ppu/apu register %02X isn't implemented\n", addr);
 			break;
 		default:
-			printf("read byte %02X to %04X\n", cpuRAM[addr], addr);
+			printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
 			return cpuRAM[addr];
 	}
 	return 0;

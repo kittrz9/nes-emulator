@@ -8,7 +8,7 @@ typedef struct {
 	uint8_t x;
 	uint8_t y;
 	uint16_t pc;
-	uint16_t sp;
+	uint8_t s;
 	uint8_t p;
 } cpu_t;
 
