@@ -1,0 +1,6 @@
+*.nes
+*.fdb
+*.prg
+*.chr
+build/
+obj/
