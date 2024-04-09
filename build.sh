@@ -5,7 +5,7 @@
 CFLAGS="$CFLAGS -O2 -Wall -Wextra -Wpedantic -std=gnu99"
 LDFLAGS="$LDFLAGS -Wall -Wextra -Wpedantic"
 DEFINES="$DEFINES"
-LIBS=""
+LIBS="-lSDL2"
 
 CFILES="$(find src/ -name "*.c")"
 OBJS=""

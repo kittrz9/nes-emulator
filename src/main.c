@@ -1,8 +1,21 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_video.h>
+
 #include "rom.h"
+#include "ram.h"
+#include "cart.h"
 #include "cpu.h"
+#include "ppu.h"
+
+#define SCREEN_WIDTH 256
+#define SCREEN_HEIGHT 240
+
+// https://www.nesdev.org/wiki/Cycle_reference_chart
+#define CYCLES_PER_FRAME 29780
+#define CYCLES_PER_VBLANK 2273
 
 int main(int argc, char** argv) {
 	if(argc < 2) {
@@ -14,8 +27,45 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
+	if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+		printf("could not init SDL\n");
+		return 1;
+	}
+
+	SDL_Window* w = SDL_CreateWindow("nesEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+
+	SDL_Renderer* r = SDL_CreateRenderer(w, -1, SDL_RENDERER_ACCELERATED);
+
 	cpuInit();
-	while(cpuStep() == 0) {};
+	SDL_Event e;
+	while(1) {
+		SDL_PollEvent(&e);
+		if(e.type == SDL_QUIT) {
+			break;
+		}
+		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
+			cpuStep();
+		}
+		printf("funny vblank\n");
+		cpu.cycles = 0;
+		ppuStatus |= 0x80;
+		push(cpu.pc & 0xFF);
+		push((cpu.pc & 0xFF00) >> 8);
+		push(cpu.p);
+		cpu.pc = ADDR16(NMI_VECTOR);
+
+
+		while(cpu.cycles <= CYCLES_PER_VBLANK) {
+			cpuStep();
+		}
+		ppuStatus &= ~(0x80);
+		printf("vblank over\n");
+
+		SDL_RenderPresent(r);
+	};
+
+	free(prgROM);
+	free(chrROM);
 	
 	return 0;
 }

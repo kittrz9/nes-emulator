@@ -104,7 +104,5 @@ uint8_t loadROM(const char* path) {
 	}
 	printf("\n\n");
 
-	free(prgROM);
-	free(chrROM);
 	return 0;
 }

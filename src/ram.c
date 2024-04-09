@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "ppu.h"
+
 uint8_t cpuRAM[0x10000];
 
 // https://www.nesdev.org/wiki/CPU_memory_map
@@ -49,7 +51,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			printf("ppu/apu register %02X isn't implemented\n", addr);
 			break;
 		default:
-			printf("writing byte %02X to %04X\n", byte, addr);
+			//printf("writing byte %02X to %04X\n", byte, addr);
 			cpuRAM[addr] = byte;
 	}
 }
@@ -57,9 +59,7 @@ uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
 	switch(addr) {
 		case 0x2002:
-			// always have vblank flag on for now
-			// needs to be changed
-			return 0x80;
+			return ppuStatus;
 		case 0x2000:
 		case 0x2001:
 		case 0x2003:
@@ -88,7 +88,7 @@ uint8_t ramReadByte(uint16_t addr) {
 			printf("ppu/apu register %02X isn't implemented\n", addr);
 			break;
 		default:
-			printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
+			//printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
 			return cpuRAM[addr];
 	}
 	return 0;
