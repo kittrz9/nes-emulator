@@ -120,7 +120,7 @@ uint8_t cpuStep() {
 			break;
 		// AND imm
 		case 0x29:
-			cpu.a &= ramReadByte(cpuRAM[cpu.pc+1]);
+			cpu.a &= cpuRAM[cpu.pc+1];
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.pc += 2;
