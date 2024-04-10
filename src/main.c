@@ -9,6 +9,7 @@
 #include "cart.h"
 #include "cpu.h"
 #include "ppu.h"
+#include "input.h"
 
 #define SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 240
@@ -37,35 +38,59 @@ int main(int argc, char** argv) {
 	SDL_Renderer* r = SDL_CreateRenderer(w, -1, SDL_RENDERER_ACCELERATED);
 
 	cpuInit();
+
+	int keyNumber;
+	const uint8_t* keys = SDL_GetKeyboardState(&keyNumber);
+
 	SDL_Event e;
 	while(1) {
 		SDL_PollEvent(&e);
 		if(e.type == SDL_QUIT) {
 			break;
 		}
+		const SDL_Keycode inputKeys[] = {
+			SDL_SCANCODE_RIGHT,
+			SDL_SCANCODE_LEFT,
+			SDL_SCANCODE_DOWN,
+			SDL_SCANCODE_UP,
+			SDL_SCANCODE_RETURN,
+			SDL_SCANCODE_RSHIFT,
+			SDL_SCANCODE_X,
+			SDL_SCANCODE_Z,
+		};
+		for(uint8_t i = 0; i < 8; ++i) {
+			if(keys[inputKeys[i]]) {
+				controllers[0] |= 1 << i;
+			}
+		}
+
 		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
 			cpuStep();
 		}
-		printf("funny vblank\n");
+		//printf("funny vblank\n");
 		cpu.cycles = 0;
-		ppuStatus |= 0x80;
-		push(cpu.pc & 0xFF);
-		push((cpu.pc & 0xFF00) >> 8);
-		push(cpu.p);
-		cpu.pc = ADDR16(NMI_VECTOR);
+		ppu.status |= 0x80;
+		if(ppu.control & 0x80) {
+			push(cpu.pc & 0xFF);
+			push((cpu.pc & 0xFF00) >> 8);
+			push(cpu.p);
+			cpu.pc = ADDR16(NMI_VECTOR);
+		}
 
+		SDL_RenderPresent(r);
 
 		while(cpu.cycles <= CYCLES_PER_VBLANK) {
 			cpuStep();
 		}
-		ppuStatus &= ~(0x80);
-		printf("vblank over\n");
-
-		SDL_RenderPresent(r);
+		//printf("vblank over\n");
+		ppu.status &= ~(0x80);
+		cpu.cycles = 0;
 	};
 
 	free(prgROM);
 	free(chrROM);
+
+	SDL_Quit();
 	
 	return 0;
 }

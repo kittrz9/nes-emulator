@@ -96,12 +96,12 @@ uint8_t loadROM(const char* path) {
 
 	memcpy(ppuRAM, chrROM, 0x4000);
 
-	for(uint32_t i = 0; i < 0x10000; ++i) {
+	/*for(uint32_t i = 0; i < 0x10000; ++i) {
 		if(i % 0x10 == 0) {
 			printf("\n%04X ", i);
 		}
 		printf("%02X", cpuRAM[i]);
-	}
+	}*/
 	printf("\n\n");
 
 	return 0;
