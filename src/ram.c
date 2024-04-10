@@ -23,6 +23,7 @@ uint16_t addrMap(uint16_t addr) {
 void ramWriteByte(uint16_t addr, uint8_t byte) {
 	addr = addrMap(addr);
 	switch(addr) {
+
 		case 0x2000:
 			ppu.control = byte;
 			break;
@@ -64,6 +65,7 @@ uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
 	switch(addr) {
 		case 0x2002:
+			printf("ppuStatus %02X\n", ppu.status);
 			return ppu.status;
 		case 0x2000:
 		case 0x2001:

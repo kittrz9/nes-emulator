@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
 			cpuStep();
 		}
-		//printf("funny vblank\n");
+		printf("funny vblank\n");
 		cpu.cycles = 0;
 		ppu.status |= 0x80;
 		if(ppu.control & 0x80) {

@@ -46,12 +46,12 @@ uint8_t cpuStep() {
 		// ASL zp
 		case 0x06:
 			{
-				uint8_t tmp = ramReadByte(cpu.pc+1);
+				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
 				set_flag(C_FLAG, (tmp & 0x80) != 0);
 				tmp <<= 1;
 				set_flag(Z_FLAG, tmp == 0);
 				set_flag(N_FLAG, ((tmp & 0x80) != 0));
-				ramWriteByte(cpu.pc+1, tmp);
+				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
 				cpu.pc += 2;
 				cpu.cycles += 5;
 				break;
@@ -105,14 +105,15 @@ uint8_t cpuStep() {
 		// ROL zp
 		case 0x26:
 			{
-				uint8_t tmp = ramReadByte(cpu.pc+1);
+				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
+				printf("rotating byte %02X from %02X\n", tmp, cpuRAM[cpu.pc+1]);
 				uint8_t carry = cpu.p & C_FLAG;
 				set_flag(C_FLAG, tmp & 0x80);
 				tmp <<= 1;
 				tmp |= carry;
 				set_flag(Z_FLAG, tmp == 0);
 				set_flag(N_FLAG, (tmp & 0x80) != 0);
-				ramWriteByte(cpu.pc+1, tmp);
+				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
 				cpu.pc += 2;
 				cpu.cycles += 5;
 				break;
@@ -163,7 +164,7 @@ uint8_t cpuStep() {
 			break;
 		// EOR zp
 		case 0x45:
-			cpu.a = cpu.a ^ ramReadByte(cpu.pc+1);
+			cpu.a = cpu.a ^ ramReadByte(cpuRAM[cpu.pc+1]);
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.pc += 2;
@@ -204,7 +205,7 @@ uint8_t cpuStep() {
 		// ADC zp
 		case 0x65:
 			{
-				uint16_t tmp = cpu.a + ramReadByte(cpu.pc+1) + (cpu.p & C_FLAG);
+				uint16_t tmp = cpu.a + ramReadByte(cpuRAM[cpu.pc+1]) + (cpu.p & C_FLAG);
 				cpu.a = tmp & 0xFF;
 				set_flag(C_FLAG, tmp > 255);
 				set_flag(Z_FLAG, cpu.a == 0);
@@ -242,13 +243,13 @@ uint8_t cpuStep() {
 			break;
 		// STA zp
 		case 0x85:
-			ramWriteByte(cpu.pc+1, cpu.a);
+			ramWriteByte(cpuRAM[cpu.pc+1], cpu.a);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
 		// STX zp
 		case 0x86:
-			ramWriteByte(cpu.pc+1, cpu.x);
+			ramWriteByte(cpuRAM[cpu.pc+1], cpu.x);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
@@ -409,17 +410,21 @@ uint8_t cpuStep() {
 			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
+		// LDA (ind), Y
+		case 0xB1:
+			cpu.a = ADDR16(cpuRAM[cpu.pc+1])+cpu.y;
+			set_flag(Z_FLAG, cpu.a == 0);
+			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			cpu.cycles += 5; // figure out what the docs mean when they say to add 1 cycle when it "crosses a page boundary" here
+			cpu.pc += 2;
+			break;
 		// LDA abs, Y
 		case 0xB9:
-			{
-				uint16_t tmp = ADDR16(cpu.pc+1);
-				cpu.a = ramReadByte(tmp + cpu.y);
-				cpu.pc += 3;
-				if(tmp >> 8 != (tmp + cpu.y) >> 8) { cpu.cycles += 1; }
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-				cpu.cycles += 4;
-			}
+			cpu.a = ramReadByte(ADDR16(cpu.pc+1)+ cpu.y);
+			cpu.pc += 3;
+			set_flag(Z_FLAG, cpu.a == 0);
+			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			cpu.cycles += 4;
 			break;
 		// LDA abs, X
 		case 0xBD:
@@ -533,7 +538,19 @@ uint8_t cpuStep() {
 				uint8_t tmp = cpuRAM[cpu.pc+1];
 				set_flag(C_FLAG, cpu.x > tmp);
 				set_flag(Z_FLAG, cpu.x == tmp);
-				set_flag(N_FLAG, tmp & 0x80);
+				set_flag(N_FLAG, (cpu.x - tmp) & 0x80);
+			}
+			cpu.pc += 2;
+			cpu.cycles += 3;
+			
+			break;
+		// CPY zp
+		case 0xE4:
+			{
+				uint8_t tmp = cpuRAM[cpu.pc+1];
+				set_flag(C_FLAG, cpu.y > tmp);
+				set_flag(Z_FLAG, cpu.y == tmp);
+				set_flag(N_FLAG, (cpu.y - tmp) & 0x80);
 			}
 			cpu.pc += 2;
 			cpu.cycles += 3;
