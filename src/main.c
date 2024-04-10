@@ -11,9 +11,6 @@
 #include "ppu.h"
 #include "input.h"
 
-#define SCREEN_WIDTH 256
-#define SCREEN_HEIGHT 240
-
 // https://www.nesdev.org/wiki/Cycle_reference_chart
 #define CYCLES_PER_FRAME 29780
 #define CYCLES_PER_VBLANK 2273
@@ -33,9 +30,7 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	SDL_Window* w = SDL_CreateWindow("nesEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
-
-	SDL_Renderer* r = SDL_CreateRenderer(w, -1, SDL_RENDERER_ACCELERATED);
+	initRenderer();
 
 	cpuInit();
 
@@ -87,21 +82,7 @@ int main(int argc, char** argv) {
 		ppu.status &= ~(0x80);
 		cpu.cycles = 0;
 
-		SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
-		SDL_RenderClear(r);
-		SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-		SDL_Rect asdf = {
-			.x = 0,
-			.y = 0,
-			.w = 8,
-			.h = 8,
-		};
-		for(uint8_t i = 0; i < 64; ++i) {
-			asdf.x = ppu.oam[i*4 + 3];
-			asdf.y = ppu.oam[i*4 + 0];
-			SDL_RenderFillRect(r, &asdf);
-		}
-		SDL_RenderPresent(r);
+		render();
 	};
 
 	free(prgROM);

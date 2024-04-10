@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+#include <SDL2/SDL.h>
+
+#define SCREEN_WIDTH 256
+#define SCREEN_HEIGHT 240
+
 //https://www.nesdev.org/wiki/PPU_registers
 typedef struct {
 	uint8_t control;
@@ -19,5 +24,9 @@ typedef struct {
 extern ppu_t ppu;
 
 extern uint8_t ppuRAM[0x4000];
+
+void initRenderer(void);
+
+void render(void);
 
 #endif
