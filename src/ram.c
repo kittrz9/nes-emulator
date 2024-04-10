@@ -36,6 +36,14 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			ppu.oam[ppu.oamAddr] = byte;
 			++ppu.oamAddr;
 			break;
+		case 0x2006:
+			*((uint8_t*)&ppu.vramAddr + (1 - ppu.w)) = byte;
+			ppu.w = !ppu.w;
+			break;
+		case 0x2007:
+			printf("writing %02X to ppu %04X\n", byte, ppu.vramAddr);
+			ppuRAM[ppu.vramAddr] = byte;
+			break;
 		case 0x4014:
 			{
 				uint8_t* oamData = &cpuRAM[byte << 8];
@@ -50,8 +58,6 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			break;
 		case 0x2002:
 		case 0x2005:
-		case 0x2006:
-		case 0x2007:
 		case 0x4000:
 		case 0x4001:
 		case 0x4002:

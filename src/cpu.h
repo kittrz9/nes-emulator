@@ -30,9 +30,9 @@ typedef struct {
 extern cpu_t cpu;
 
 void push(uint8_t byte);
-uint8_t pop();
+uint8_t pop(void);
 
-void cpuInit();
-uint8_t cpuStep();
+void cpuInit(void);
+uint8_t cpuStep(void);
 
 #endif
