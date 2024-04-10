@@ -41,7 +41,6 @@ void drawTile(uint8_t* bitplaneStart, uint8_t x, uint8_t y) {
 
 void render(void) {
 	SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
-	SDL_RenderClear(r);
 	SDL_FillRect(windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT}, 0xFF000000);
 	SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
 	// draw nametable
@@ -64,7 +63,4 @@ void render(void) {
 		drawTile(bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]);
 	}
 	SDL_UpdateWindowSurface(w);
-
-	
-	SDL_RenderPresent(r);
 }

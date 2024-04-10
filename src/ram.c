@@ -41,7 +41,6 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			ppu.w = !ppu.w;
 			break;
 		case 0x2007:
-			printf("writing %02X to ppu %04X\n", byte, ppu.vramAddr);
 			ppuRAM[ppu.vramAddr] = byte;
 			break;
 		case 0x4014:
@@ -86,13 +85,14 @@ uint8_t ramReadByte(uint16_t addr) {
 	switch(addr) {
 		case 0x2002:
 			return ppu.status;
+		case 0x2007:
+			return ppuRAM[ppu.vramAddr];
 		case 0x2000:
 		case 0x2001:
 		case 0x2003:
 		case 0x2004:
 		case 0x2005:
 		case 0x2006:
-		case 0x2007:
 		case 0x4000:
 		case 0x4001:
 		case 0x4002:
