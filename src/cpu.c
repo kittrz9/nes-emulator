@@ -33,12 +33,12 @@ uint8_t pop() {
 uint8_t cpuStep() {
 	uint8_t opcode = cpuRAM[cpu.pc];
 
-	printf("pc: %04X\n", cpu.pc);
+	/*printf("pc: %04X\n", cpu.pc);
 	printf("a: %02X, x: %02X, y: %02X\n", cpu.a, cpu.x, cpu.y);
 	printf("p: %02X\n", cpu.p);
 	printf("s: %02X\n", cpu.s);
 	printf("opcode: %02X\n", opcode);
-	printf("cycles: %u\n", cpu.cycles);
+	printf("cycles: %u\n", cpu.cycles);*/
 
 	// https://www.masswerk.at/6502/6502_instruction_set.html
 	// https://www.nesdev.org/obelisk-6502-guide/reference.html
@@ -106,7 +106,6 @@ uint8_t cpuStep() {
 		case 0x26:
 			{
 				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				printf("rotating byte %02X from %02X\n", tmp, cpuRAM[cpu.pc+1]);
 				uint8_t carry = cpu.p & C_FLAG;
 				set_flag(C_FLAG, tmp & 0x80);
 				tmp <<= 1;

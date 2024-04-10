@@ -60,9 +60,12 @@ int main(int argc, char** argv) {
 		};
 		for(uint8_t i = 0; i < 8; ++i) {
 			if(keys[inputKeys[i]]) {
-				controllers[0] |= 1 << i;
+				controllers[0].buttons |= 1 << i;
+			} else {
+				controllers[0].buttons &= ~(1 << i);
 			}
 		}
+		//controllers[0].buttons |= 1;
 
 		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
 			cpuStep();
@@ -77,14 +80,28 @@ int main(int argc, char** argv) {
 			cpu.pc = ADDR16(NMI_VECTOR);
 		}
 
-		SDL_RenderPresent(r);
-
 		while(cpu.cycles <= CYCLES_PER_VBLANK) {
 			cpuStep();
 		}
 		//printf("vblank over\n");
 		ppu.status &= ~(0x80);
 		cpu.cycles = 0;
+
+		SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+		SDL_RenderClear(r);
+		SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+		SDL_Rect asdf = {
+			.x = 0,
+			.y = 0,
+			.w = 8,
+			.h = 8,
+		};
+		for(uint8_t i = 0; i < 64; ++i) {
+			asdf.x = ppu.oam[i*4 + 3];
+			asdf.y = ppu.oam[i*4 + 0];
+			SDL_RenderFillRect(r, &asdf);
+		}
+		SDL_RenderPresent(r);
 	};
 
 	free(prgROM);

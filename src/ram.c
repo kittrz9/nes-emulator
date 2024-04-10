@@ -23,16 +23,32 @@ uint16_t addrMap(uint16_t addr) {
 void ramWriteByte(uint16_t addr, uint8_t byte) {
 	addr = addrMap(addr);
 	switch(addr) {
-
 		case 0x2000:
 			ppu.control = byte;
 			break;
 		case 0x2001:
 			ppu.mask = byte;
 			break;
-		case 0x2002:
 		case 0x2003:
+			ppu.oamAddr = byte;
+			break;
 		case 0x2004:
+			ppu.oam[ppu.oamAddr] = byte;
+			++ppu.oamAddr;
+			break;
+		case 0x4014:
+			{
+				uint8_t* oamData = &cpuRAM[byte << 8];
+				for(uint16_t i = 0; i < 256; ++i) {
+					ppu.oam[i] = oamData[i];
+				}
+			}
+			break;
+		case 0x4016:
+			controllerLatch = byte & 0x01;
+			printf("latch set to %02X\n", byte & 0x01);
+			break;
+		case 0x2002:
 		case 0x2005:
 		case 0x2006:
 		case 0x2007:
@@ -50,9 +66,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x4011:
 		case 0x4012:
 		case 0x4013:
-		case 0x4014:
 		case 0x4015:
-		case 0x4016:
 		case 0x4017:
 			printf("writing ppu/apu register %02X isn't implemented\n", addr);
 			break;
@@ -65,7 +79,6 @@ uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
 	switch(addr) {
 		case 0x2002:
-			printf("ppuStatus %02X\n", ppu.status);
 			return ppu.status;
 		case 0x2000:
 		case 0x2001:
@@ -93,11 +106,11 @@ uint8_t ramReadByte(uint16_t addr) {
 			printf("reading ppu/apu register %02X isn't implemented\n", addr);
 			break;
 		case 0x4016:
-			printf("controller 1: %02X\n", controllers[0]);
-			return controllers[0];
+			printf("controller 1: %02X\n", controllers[0].buttons);
+			return pollController(0);
 		case 0x4017:
-			printf("controller 2: %02X\n", controllers[1]);
-			return controllers[1];
+			printf("controller 2: %02X\n", controllers[1].buttons);
+			return pollController(1);;
 		default:
 			//printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
 			return cpuRAM[addr];

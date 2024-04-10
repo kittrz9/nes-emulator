@@ -13,6 +13,7 @@ typedef struct {
 	uint8_t t;
 	uint8_t x;
 	uint8_t w;
+	uint8_t oam[256];
 } ppu_t;
 
 extern ppu_t ppu;
