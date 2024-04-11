@@ -1,5 +1,7 @@
 #include "ppu.h"
 
+#include <SDL2/SDL.h>
+
 ppu_t ppu;
 
 uint8_t ppuRAM[0x4000];
@@ -9,11 +11,17 @@ SDL_Renderer* r;
 SDL_Surface* windowSurface;
 SDL_Surface* tile;
 
-void initRenderer(void) {
+uint8_t initRenderer(void) {
+	if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+		printf("could not init SDL\n");
+		return 1;
+	}
+
 	w = SDL_CreateWindow("nesEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
 	r = SDL_CreateRenderer(w, -1, SDL_RENDERER_ACCELERATED);
 	windowSurface = SDL_GetWindowSurface(w);
 	tile = SDL_CreateRGBSurface(0, 8, 8, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+	return 0;
 }
 
 void uninitRenderer(void) {
@@ -21,6 +29,8 @@ void uninitRenderer(void) {
 	SDL_DestroyWindowSurface(w);
 	SDL_DestroyWindow(w);
 	SDL_DestroyRenderer(r);
+
+	SDL_Quit();
 }
 
 void drawTile(uint8_t* bitplaneStart, uint8_t x, uint8_t y) {

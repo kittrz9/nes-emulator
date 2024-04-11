@@ -14,4 +14,7 @@ extern controller_t controllers[2];
 
 uint8_t pollController(uint8_t port);
 
+void initInput(void);
+uint8_t handleInput(void);
+
 #endif

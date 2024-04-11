@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
-
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_video.h>
+#include <stdlib.h>
 
 #include "rom.h"
 #include "ram.h"
@@ -25,41 +23,15 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	if(SDL_Init(SDL_INIT_VIDEO) < 0) {
-		printf("could not init SDL\n");
+	if(initRenderer() != 0) {
 		return 1;
 	}
-
-	initRenderer();
+	initInput();
 
 	cpuInit();
 
-	int keyNumber;
-	const uint8_t* keys = SDL_GetKeyboardState(&keyNumber);
-
-	SDL_Event e;
 	while(1) {
-		SDL_PollEvent(&e);
-		if(e.type == SDL_QUIT) {
-			break;
-		}
-		const SDL_Keycode inputKeys[] = {
-			SDL_SCANCODE_RIGHT,
-			SDL_SCANCODE_LEFT,
-			SDL_SCANCODE_DOWN,
-			SDL_SCANCODE_UP,
-			SDL_SCANCODE_RETURN,
-			SDL_SCANCODE_RSHIFT,
-			SDL_SCANCODE_X,
-			SDL_SCANCODE_Z,
-		};
-		for(uint8_t i = 0; i < 8; ++i) {
-			if(keys[inputKeys[i]]) {
-				controllers[0].buttons |= 1 << i;
-			} else {
-				controllers[0].buttons &= ~(1 << i);
-			}
-		}
+		if(handleInput() != 0) { break; }
 		//controllers[0].buttons |= 1;
 
 		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
@@ -90,7 +62,5 @@ int main(int argc, char** argv) {
 
 	uninitRenderer();
 
-	SDL_Quit();
-	
 	return 0;
 }

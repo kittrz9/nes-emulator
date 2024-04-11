@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#include <SDL2/SDL.h>
-
 #define SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 240
 
@@ -25,7 +23,7 @@ extern ppu_t ppu;
 
 extern uint8_t ppuRAM[0x4000];
 
-void initRenderer(void);
+uint8_t initRenderer(void);
 void uninitRenderer(void);
 
 void render(void);
