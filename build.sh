@@ -18,7 +18,7 @@ mkdir build/ obj/
 
 for f in $CFILES; do
 	OBJNAME="$(echo $f | sed -e "s/\.c/\.o/" -e "s/src/obj/")"
-	$CC $CFLAGS -c $f -o $OBJNAME &
+	$CC $CFLAGS $DEFINES -c $f -o $OBJNAME &
 	OBJS="$OBJS $OBJNAME"
 done
 

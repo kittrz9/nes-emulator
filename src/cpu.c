@@ -33,12 +33,14 @@ uint8_t pop() {
 uint8_t cpuStep() {
 	uint8_t opcode = cpuRAM[cpu.pc];
 
-	/*printf("pc: %04X\n", cpu.pc);
-	printf("a: %02X, x: %02X, y: %02X\n", cpu.a, cpu.x, cpu.y);
-	printf("p: %02X\n", cpu.p);
-	printf("s: %02X\n", cpu.s);
-	printf("opcode: %02X\n", opcode);
-	printf("cycles: %u\n", cpu.cycles);*/
+	#ifdef DEBUG
+		printf("pc: %04X\n", cpu.pc);
+		printf("a: %02X, x: %02X, y: %02X\n", cpu.a, cpu.x, cpu.y);
+		printf("p: %02X\n", cpu.p);
+		printf("s: %02X\n", cpu.s);
+		printf("opcode: %02X\n", opcode);
+		printf("cycles: %u\n", cpu.cycles);
+	#endif
 
 	// https://www.masswerk.at/6502/6502_instruction_set.html
 	// https://www.nesdev.org/obelisk-6502-guide/reference.html
@@ -299,7 +301,7 @@ uint8_t cpuStep() {
 			break;
 		// STA (ind), Y
 		case 0x91:
-			ramWriteByte(ADDR16(cpuRAM[cpu.pc+1])+cpu.y, cpu.a);
+			ramWriteByte(ADDR16(cpu.pc+1)+cpu.y, cpu.a);
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -411,7 +413,7 @@ uint8_t cpuStep() {
 			break;
 		// LDA (ind), Y
 		case 0xB1:
-			cpu.a = ADDR16(cpuRAM[cpu.pc+1])+cpu.y;
+			cpu.a = ADDR16(cpu.pc+1)+cpu.y;
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.cycles += 5; // figure out what the docs mean when they say to add 1 cycle when it "crosses a page boundary" here
