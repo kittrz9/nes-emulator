@@ -88,6 +88,8 @@ int main(int argc, char** argv) {
 	free(prgROM);
 	free(chrROM);
 
+	uninitRenderer();
+
 	SDL_Quit();
 	
 	return 0;

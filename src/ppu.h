@@ -26,6 +26,7 @@ extern ppu_t ppu;
 extern uint8_t ppuRAM[0x4000];
 
 void initRenderer(void);
+void uninitRenderer(void);
 
 void render(void);
 

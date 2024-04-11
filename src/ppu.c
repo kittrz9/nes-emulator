@@ -16,6 +16,13 @@ void initRenderer(void) {
 	tile = SDL_CreateRGBSurface(0, 8, 8, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 }
 
+void uninitRenderer(void) {
+	SDL_FreeSurface(tile);
+	SDL_DestroyWindowSurface(w);
+	SDL_DestroyWindow(w);
+	SDL_DestroyRenderer(r);
+}
+
 void drawTile(uint8_t* bitplaneStart, uint8_t x, uint8_t y) {
 	SDL_Rect asdf = {
 		.x = x,
