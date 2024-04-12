@@ -10,6 +10,7 @@ SDL_Window* w;
 SDL_Renderer* r;
 SDL_Surface* windowSurface;
 SDL_Surface* tile;
+SDL_Surface* frameBuffer;
 
 uint8_t initRenderer(void) {
 	if(SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -21,6 +22,7 @@ uint8_t initRenderer(void) {
 	r = SDL_CreateRenderer(w, -1, SDL_RENDERER_ACCELERATED);
 	windowSurface = SDL_GetWindowSurface(w);
 	tile = SDL_CreateRGBSurface(0, 8, 8, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+	frameBuffer = SDL_CreateRGBSurface(0, FB_WIDTH, FB_HEIGHT, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 	return 0;
 }
 
@@ -53,12 +55,13 @@ void drawTile(uint8_t* bitplaneStart, uint8_t x, uint8_t y) {
 		++bitplane1;
 		++bitplane2;
 	}
-	SDL_BlitSurface(tile, &(SDL_Rect){0,0,8,8}, windowSurface, &asdf);
+	SDL_BlitSurface(tile, &(SDL_Rect){0,0,8,8}, frameBuffer, &asdf);
 }
 
 void render(void) {
 	SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
 	SDL_FillRect(windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT}, 0xFF000000);
+	SDL_FillRect(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, 0xFF000000);
 	SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
 	// draw nametable
 	// only dealing with the first one for now
@@ -79,5 +82,6 @@ void render(void) {
 		uint8_t* bitplaneStart = bank + tileID*8*2;
 		drawTile(bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]);
 	}
+	SDL_BlitScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT});
 	SDL_UpdateWindowSurface(w);
 }

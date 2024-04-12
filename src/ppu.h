@@ -3,8 +3,11 @@
 
 #include <stdint.h>
 
-#define SCREEN_WIDTH 256
-#define SCREEN_HEIGHT 240
+#define FB_WIDTH 256
+#define FB_HEIGHT 240
+
+#define SCREEN_WIDTH FB_WIDTH*2
+#define SCREEN_HEIGHT FB_HEIGHT*2
 
 //https://www.nesdev.org/wiki/PPU_registers
 typedef struct {
