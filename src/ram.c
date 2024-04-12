@@ -38,10 +38,17 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			break;
 		case 0x2006:
 			*((uint8_t*)&ppu.vramAddr + (1 - ppu.w)) = byte;
+			#ifdef DEBUG
+				printf("ppu addr set to %04X\n", ppu.vramAddr);
+			#endif
 			ppu.w = !ppu.w;
 			break;
 		case 0x2007:
+			#ifdef DEBUG
+				printf("writing %02X into ppu %04X\n", byte, ppu.vramAddr);
+			#endif
 			ppuRAM[ppu.vramAddr] = byte;
+			ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
 			break;
 		case 0x4014:
 			{
@@ -76,7 +83,9 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			printf("writing ppu/apu register %02X isn't implemented\n", addr);
 			break;
 		default:
-			//printf("writing byte %02X to %04X\n", byte, addr);
+			#ifdef DEBUG
+				printf("writing byte %02X to %04X\n", byte, addr);
+			#endif
 			cpuRAM[addr] = byte;
 	}
 }
@@ -84,7 +93,12 @@ uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
 	switch(addr) {
 		case 0x2002:
-			return ppu.status;
+			{
+				// clear vblank flag after it's read
+				uint8_t tmp = ppu.status;
+				ppu.status &= ~(0x80);
+				return tmp;
+			}
 		case 0x2007:
 			return ppuRAM[ppu.vramAddr];
 		case 0x2000:
@@ -109,7 +123,9 @@ uint8_t ramReadByte(uint16_t addr) {
 		case 0x4013:
 		case 0x4014:
 		case 0x4015:
-			printf("reading ppu/apu register %02X isn't implemented\n", addr);
+			#ifdef DEBUG
+				printf("reading ppu/apu register %02X isn't implemented\n", addr);
+			#endif
 			break;
 		case 0x4016:
 			//printf("controller 1: %02X\n", controllers[0].buttons);
@@ -118,7 +134,9 @@ uint8_t ramReadByte(uint16_t addr) {
 			//printf("controller 2: %02X\n", controllers[1].buttons);
 			return pollController(1);;
 		default:
-			//printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
+			#ifdef DEBUG
+				printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
+			#endif
 			return cpuRAM[addr];
 	}
 	return 0;

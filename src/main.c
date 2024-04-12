@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 		printf("funny vblank\n");
 		cpu.cycles = 0;
 		ppu.status |= 0x80;
-		if(ppu.control & 0x80) {
+		if((ppu.control & 0x80) != 0) {
 			push(cpu.pc & 0xFF);
 			push((cpu.pc & 0xFF00) >> 8);
 			push(cpu.p);
