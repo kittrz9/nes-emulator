@@ -7,6 +7,14 @@
 
 cpu_t cpu;
 
+#define ARG8 ramReadByte(cpu.pc+1)
+#define ARG16 ADDR16(cpu.pc+1)
+#define IMM ARG8
+#define ZP ramReadByte(ARG8)
+#define ABS ramReadByte(ARG16)
+#define ZP_INDEX(v) ramReadByte((ARG8 + v) & 0xFF)
+#define ABS_INDEX(v) ramReadByte(ARG16 + v)
+
 void set_flag(uint8_t flag, uint8_t value) {
 	if(value) {
 		cpu.p |= flag;
@@ -30,6 +38,114 @@ uint8_t pop() {
 	return ramReadByte(0x100 + ++cpu.s);
 }
 
+void branch(uint8_t cond) {
+	if(cond) {
+		uint8_t oldPage = cpu.pc >> 8;
+		cpu.pc += (int8_t)cpuRAM[cpu.pc+1];
+		if(cpu.pc>>8 != oldPage) { cpu.cycles += 1; }
+		cpu.cycles += 1;
+	}
+	return;
+}
+
+void cmp(uint8_t reg, uint8_t byte) {
+	set_flag(C_FLAG, reg >= byte);
+	set_flag(Z_FLAG, reg == byte);
+	set_flag(N_FLAG, byte & 0x80);
+	return;
+}
+
+void bit(uint8_t byte) {
+	set_flag(Z_FLAG, (byte & cpu.a) == 0);
+	set_flag(V_FLAG, byte & V_FLAG);
+	set_flag(N_FLAG, byte & N_FLAG);
+	return;
+}
+
+void ora(uint8_t byte) {
+	cpu.a |= byte;
+	set_flag(Z_FLAG, cpu.a == 0);
+	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+	return;
+}
+
+void and_a(uint8_t byte) {
+	cpu.a &= byte;
+	set_flag(Z_FLAG, cpu.a == 0);
+	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+	return;
+}
+
+// return result so it can be put into ram or A
+uint8_t asl(uint8_t byte) {
+	set_flag(C_FLAG, byte & 0x80);
+	byte <<= 1;
+	set_flag(Z_FLAG, byte == 0);
+	set_flag(N_FLAG, byte & 0x80);
+	return byte;
+}
+
+uint8_t lsr(uint8_t byte) {
+	set_flag(C_FLAG, byte & 0x01);
+	byte >>= 1;
+	set_flag(Z_FLAG, byte == 0);
+	set_flag(N_FLAG, byte & 0x80);
+	return byte;
+}
+
+uint8_t ror(uint8_t byte) {
+	uint8_t carry = cpu.p & C_FLAG;
+	set_flag(C_FLAG, byte & 0x01);
+	byte >>= 1;
+	byte |= carry << 7;
+	set_flag(Z_FLAG, byte == 0);
+	set_flag(N_FLAG, (byte & 0x80) != 0);
+	return byte;
+}
+
+uint8_t rol(uint8_t byte) {
+	uint8_t carry = cpu.p & C_FLAG;
+	set_flag(C_FLAG, byte & 0x80);
+	byte <<= 1;
+	byte |= carry;
+	set_flag(Z_FLAG, byte == 0);
+	set_flag(N_FLAG, (byte & 0x80) != 0);
+	return byte;
+}
+
+void adc(uint8_t byte) {
+	uint16_t tmp = cpu.a + byte + (cpu.p & C_FLAG);
+	set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
+	cpu.a = tmp & 0xFF;
+	set_flag(C_FLAG, tmp > 255);
+	set_flag(Z_FLAG, cpu.a == 0);
+	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+	return;
+}
+
+void sbc(uint8_t byte) {
+	uint16_t tmp = cpu.a - byte - (cpu.p & C_FLAG);
+	set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
+	cpu.a = tmp & 0xFF;
+	set_flag(C_FLAG, tmp > 255);
+	set_flag(Z_FLAG, cpu.a == 0);
+	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+}
+
+uint8_t dec(uint8_t byte) {
+	--byte;
+	set_flag(Z_FLAG, byte == 0);
+	set_flag(N_FLAG, (byte & 0x80) != 0);
+	return byte;
+}
+
+uint8_t inc(uint8_t byte) {
+	++byte;
+	set_flag(Z_FLAG, byte == 0);
+	set_flag(N_FLAG, (byte & 0x80) != 0);
+	return byte;
+}
+
 uint8_t cpuStep() {
 	uint8_t opcode = cpuRAM[cpu.pc];
 
@@ -43,69 +159,42 @@ uint8_t cpuStep() {
 		printf("\n");
 	#endif
 
-
 	// https://www.masswerk.at/6502/6502_instruction_set.html
 	// https://www.nesdev.org/obelisk-6502-guide/reference.html
 	switch(opcode) {
 		// ORA zp
 		case 0x05:
-			cpu.a |= ramReadByte(cpuRAM[cpu.pc+1]);
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			ora(ZP);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
 		// ASL zp
 		case 0x06:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				set_flag(C_FLAG, (tmp & 0x80) != 0);
-				tmp <<= 1;
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, ((tmp & 0x80) != 0));
-				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
-				cpu.pc += 2;
-				cpu.cycles += 5;
-				break;
-			}
+			ramWriteByte(ARG8, asl(ZP));
+			cpu.pc += 2;
+			cpu.cycles += 5;
+			break;
 		// ORA imm
 		case 0x09:
-			cpu.a |= cpuRAM[cpu.pc+1];
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			ora(IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// ASL A
 		case 0x0A:
-			set_flag(C_FLAG, (cpu.a & 0x80) != 0);
-			cpu.a <<= 1;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80));
+			cpu.a = asl(cpu.a);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// ASL abs
 		case 0x0E:
-			{
-				uint8_t tmp = ramReadByte(ADDR16(cpuRAM[cpu.pc+1]));
-				set_flag(C_FLAG, (tmp & 0x80) != 0);
-				tmp <<= 1;
-				ramWriteByte(ADDR16(cpuRAM[cpu.pc+1]), tmp);
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80));
-				cpu.pc += 3;
-				cpu.cycles += 6;
-			}
+			ramWriteByte(ARG16, ABS);
+			cpu.pc += 3;
+			cpu.cycles += 6;
 			break;
 		// BPL
 		case 0x10:
-			if((cpu.p & N_FLAG) == 0) {
-				uint8_t oldPage = cpu.pc >> 8;
-				cpu.pc += (int8_t)cpuRAM[cpu.pc+1];
-				if(cpu.pc>>8 != oldPage) { cpu.cycles += 1; }
-				cpu.cycles += 1;
-			}
+			branch((cpu.p & N_FLAG) == 0);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
@@ -126,101 +215,55 @@ uint8_t cpuStep() {
 			break;
 		// BIT zp
 		case 0x24:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				set_flag(Z_FLAG, (tmp & cpu.a) == 0);
-				set_flag(V_FLAG, tmp & V_FLAG);
-				set_flag(N_FLAG, tmp & N_FLAG);
-				cpu.pc += 2;
-				cpu.cycles += 3;
-				break;
-			}
+			bit(ZP);
+			cpu.pc += 2;
+			cpu.cycles += 3;
+			break;
 		// AND zp
 		case 0x25:
-			cpu.a &= ramReadByte(cpuRAM[cpu.pc+1]);
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			and_a(ZP);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// ROL zp
 		case 0x26:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				uint8_t carry = cpu.p & C_FLAG;
-				set_flag(C_FLAG, tmp & 0x80);
-				tmp <<= 1;
-				tmp |= carry;
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
-				cpu.pc += 2;
-				cpu.cycles += 5;
-			}
+			ramWriteByte(ARG8, rol(ZP));
+			cpu.pc += 2;
+			cpu.cycles += 5;
 			break;
 		// AND imm
 		case 0x29:
-			cpu.a &= cpuRAM[cpu.pc+1];
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			and_a(IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// ROL A
 		case 0x2A:
-			{
-				uint8_t carry = cpu.p & C_FLAG;
-				set_flag(C_FLAG, cpu.a & 0x80);
-				cpu.a <<= 1;
-				cpu.a |= carry;
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-				cpu.pc += 1;
-				cpu.cycles += 2;
-			}
+			cpu.a = rol(cpu.a);
+			cpu.pc += 1;
+			cpu.cycles += 2;
 			break;
 		// BIT abs
 		case 0x2C:
-			{
-				uint8_t tmp = ramReadByte(ADDR16(cpu.pc+1));
-				set_flag(Z_FLAG, (tmp & cpu.a) == 0);
-				set_flag(V_FLAG, tmp & V_FLAG);
-				set_flag(N_FLAG, tmp & N_FLAG);
-				cpu.pc += 3;
-				cpu.cycles += 4;
-				break;
-			}
+			bit(ABS);
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
 		// AND abs
 		case 0x2D:
-			cpu.a &= ramReadByte(ADDR16(cpu.pc+1));
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			and_a(ABS);
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
 		// ROL abs
 		case 0x2E:
-			{
-				uint8_t tmp = ramReadByte(ADDR16(cpu.pc+1));
-				uint8_t carry = cpu.p & C_FLAG;
-				set_flag(C_FLAG, tmp & 0x80);
-				tmp >>= 1;
-				tmp |= carry << 7;
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-				ramWriteByte(ADDR16(cpu.pc+1), tmp);
-				cpu.pc += 3;
-				cpu.cycles += 7;
-			}
+			ramWriteByte(ARG16, rol(ABS));
+			cpu.pc += 3;
+			cpu.cycles += 7;
 			break;
 		// BMI
 		case 0x30:
-			if((cpu.p & N_FLAG) != 0) {
-				uint8_t oldPage = cpu.pc >> 8;
-				cpu.pc += (int8_t)cpuRAM[cpu.pc+1];
-				if(cpu.pc>>8 != oldPage) { cpu.cycles += 1; }
-				cpu.cycles += 1;
-			}
+			branch((cpu.p & N_FLAG) != 0);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
@@ -232,9 +275,7 @@ uint8_t cpuStep() {
 			break;
 		// AND abs, X
 		case 0x3D:
-			cpu.a &= ADDR16(cpu.pc+1) + cpu.x;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			and_a(ABS_INDEX(cpu.x));
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
@@ -255,17 +296,9 @@ uint8_t cpuStep() {
 			break;
 		// LSR zp
 		case 0x46:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				set_flag(C_FLAG, tmp & 0x01);
-				tmp >>= 1;
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, ((tmp & 0x80) != 0));
-				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
-				cpu.pc += 2;
-				cpu.cycles += 5;
-				break;
-			}
+			ramWriteByte(ARG8, lsr(ZP));
+			cpu.pc += 2;
+			cpu.cycles += 5;
 			break;
 		// PHA
 		case 0x48:
@@ -283,16 +316,13 @@ uint8_t cpuStep() {
 			break;
 		// LSR A
 		case 0x4A:
-			set_flag(C_FLAG, (cpu.a & 0x01) != 0);
-			cpu.a >>= 1;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			cpu.a = lsr(cpu.a);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// JMP abs
 		case 0x4C:
-			cpu.pc = ADDR16(cpu.pc+1);
+			cpu.pc = ARG16;
 			cpu.cycles += 3;
 			break;
 		// CLI
@@ -310,33 +340,15 @@ uint8_t cpuStep() {
 			break;
 		// ADC zp
 		case 0x65:
-			{
-				uint8_t byte = ramReadByte(cpuRAM[cpu.pc+1]);
-				uint16_t tmp = cpu.a + byte + (cpu.p & C_FLAG);
-				set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-				cpu.a = tmp & 0xFF;
-				set_flag(C_FLAG, tmp > 255);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			}
+			adc(ZP);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
 		// ROR zp
 		case 0x66:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				uint8_t carry = cpu.p & C_FLAG;
-				set_flag(C_FLAG, tmp & 0x01);
-				tmp >>= 1;
-				tmp |= carry << 7;
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
-				cpu.pc += 2;
-				cpu.cycles += 5;
-			}
-
+			ramWriteByte(ARG8, ror(ZP));
+			cpu.pc += 2;
+			cpu.cycles += 5;
 			break;
 		// PLA
 		case 0x68:
@@ -348,30 +360,15 @@ uint8_t cpuStep() {
 			break;
 		// ADC imm
 		case 0x69:
-			{
-				uint8_t byte = cpuRAM[cpu.pc+1];
-				uint16_t tmp = cpu.a + byte + (cpu.p & C_FLAG);
-				set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-				cpu.a = tmp & 0xFF;
-				set_flag(C_FLAG, tmp > 255);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			}
+			adc(IMM);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
 		// ROR A
 		case 0x6A:
-			{
-				uint8_t carry = cpu.p & C_FLAG;
-				set_flag(C_FLAG, cpu.a & 0x01);
-				cpu.a >>= 1;
-				cpu.a |= carry << 7;
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-				cpu.pc += 1;
-				cpu.cycles += 2;
-			}
+			cpu.a = ror(cpu.a);
+			cpu.pc += 1;
+			cpu.cycles += 2;
 			break;
 		// JMP (ind)
 		case 0x6C:
@@ -380,31 +377,21 @@ uint8_t cpuStep() {
 			break;
 		// ADC abs
 		case 0x6D:
-			{
-				uint8_t byte = ramReadByte(ADDR16(cpuRAM[cpu.pc+1]));
-				uint16_t tmp = cpu.a + byte + (cpu.p & C_FLAG);
-				set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-				cpu.a = tmp & 0xFF;
-				set_flag(C_FLAG, tmp > 255);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			}
+			adc(ABS);
 			cpu.pc += 3;
 			cpu.cycles += 3;
 			break;
 		// ADC (ind), Y
 		case 0x71:
-			{
-				uint8_t byte = ramReadByte(ADDR16(cpuRAM[cpu.pc+1]) + cpu.y);
-				uint16_t tmp = cpu.a + byte + (cpu.p & C_FLAG);
-				set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-				cpu.a = tmp & 0xFF;
-				set_flag(C_FLAG, tmp > 255);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			}
+			adc(ramReadByte(ADDR16(ramReadByte(cpu.pc+1)) + cpu.y));
 			cpu.pc += 2;
 			cpu.cycles += 5;
+			break;
+		// ADC zp, X
+		case 0x75:
+			adc(ZP_INDEX(cpu.x));
+			cpu.pc += 2;
+			cpu.cycles += 4;
 			break;
 		// SEI
 		case 0x78:
@@ -414,33 +401,21 @@ uint8_t cpuStep() {
 			break;
 		// ADC abs, Y
 		case 0x79:
-			{
-				uint8_t byte = ramReadByte(ADDR16(cpu.pc+1) + cpu.y);
-				uint16_t tmp = cpu.a + byte + (cpu.p & C_FLAG);
-				set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-				cpu.a = tmp & 0xFF;
-				set_flag(C_FLAG, tmp > 255);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			}
+			adc(ABS_INDEX(cpu.y));
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
+		// ADC abs, X
+		case 0x7D:
+			adc(ABS_INDEX(cpu.x));
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
 		// ROR abs, X
 		case 0x7E:
-			{
-				uint8_t tmp = ramReadByte(ADDR16(cpu.pc+1) + cpu.x);
-				uint8_t carry = cpu.p & C_FLAG;
-				set_flag(C_FLAG, tmp & 0x80);
-				tmp >>= 1;
-				tmp |= carry << 7;
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-				ramWriteByte(ADDR16(cpu.pc+1), tmp);
-				cpu.pc += 3;
-				cpu.cycles += 7;
-			}
-			break;
+			ramWriteByte(ARG16 + cpu.x, ror(ABS_INDEX(cpu.x)));
+			cpu.pc += 3;
+			cpu.cycles += 7;
 			break;
 		// STY zp
 		case 0x84:
@@ -462,9 +437,7 @@ uint8_t cpuStep() {
 			break;
 		// DEY
 		case 0x88:
-			--cpu.y;
-			set_flag(Z_FLAG, cpu.y == 0);
-			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
+			cpu.y = dec(cpu.y);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
@@ -496,12 +469,7 @@ uint8_t cpuStep() {
 			break;
 		// BCC
 		case 0x90:
-			if((cpu.p & C_FLAG) == 0) {
-				uint8_t oldPage = cpu.pc >> 8;
-				cpu.pc += (int8_t)cpuRAM[cpu.pc+1];
-				if(cpu.pc>>8 != oldPage) { cpu.cycles += 1; }
-				cpu.cycles += 1;
-			}
+			branch((cpu.p & C_FLAG) == 0);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
@@ -552,9 +520,9 @@ uint8_t cpuStep() {
 		// LDY imm
 		case 0xA0:
 			cpu.y = cpuRAM[cpu.pc+1];
-			cpu.pc += 2;
 			set_flag(Z_FLAG, cpu.y == 0);
 			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
+			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// LDX imm
@@ -639,12 +607,7 @@ uint8_t cpuStep() {
 			break;
 		// BCS
 		case 0xB0:
-			if((cpu.p & C_FLAG) != 0) {
-				uint8_t oldPage = cpu.pc >> 8;
-				cpu.pc += (int8_t)cpuRAM[cpu.pc+1];
-				if(cpu.pc>>8 != oldPage) { cpu.cycles += 1; }
-				cpu.cycles += 1;
-			}
+			branch((cpu.p & C_FLAG) != 0);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
@@ -675,7 +638,7 @@ uint8_t cpuStep() {
 			break;
 		// LDA abs, Y
 		case 0xB9:
-			cpu.a = ramReadByte(ADDR16(cpu.pc+1)+ cpu.y);
+			cpu.a = ABS_INDEX(cpu.y);
 			cpu.pc += 3;
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
@@ -691,7 +654,7 @@ uint8_t cpuStep() {
 			break;
 		// LDY abs, X
 		case 0xBC:
-			cpu.y = ramReadByte(ADDR16(cpu.pc+1)+ cpu.x);
+			cpu.y = ABS_INDEX(cpu.x);
 			cpu.pc += 3;
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
@@ -699,158 +662,93 @@ uint8_t cpuStep() {
 			break;
 		// LDA abs, X
 		case 0xBD:
-			{
-				uint16_t tmp = ADDR16(cpu.pc+1);
-				cpu.a = ramReadByte(tmp + cpu.x);
-				cpu.pc += 3;
-				if(tmp >> 8 != (tmp + cpu.x) >> 8) { cpu.cycles += 1; }
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-				cpu.cycles += 4;
-			}
+			cpu.a = ABS_INDEX(cpu.x);
+			set_flag(Z_FLAG, cpu.a == 0);
+			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			cpu.pc += 3;
+			cpu.cycles += 4;
 			break;
 		// LDX abs, Y
 		case 0xBE:
-			{
-				uint16_t tmp = ADDR16(cpu.pc+1);
-				cpu.a = ramReadByte(tmp + cpu.y);
-				cpu.pc += 3;
-				if(tmp >> 8 != (tmp + cpu.y) >> 8) { cpu.cycles += 1; }
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-				cpu.cycles += 4;
-			}
+			cpu.a = ABS_INDEX(cpu.y);
+			set_flag(Z_FLAG, cpu.a == 0);
+			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			cpu.pc += 3;
+			cpu.cycles += 4;
 			break;
 		// CPY imm
 		case 0xC0:
-			{
-				uint8_t tmp = cpuRAM[cpu.pc+1];
-				set_flag(C_FLAG, cpu.y > tmp);
-				set_flag(Z_FLAG, cpu.y == tmp);
-				set_flag(N_FLAG, tmp & 0x80);
-			}
+			cmp(cpu.y, cpuRAM[cpu.pc+1]);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// CPY zp
 		case 0xC4:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				set_flag(C_FLAG, cpu.y >= tmp);
-				set_flag(Z_FLAG, cpu.y == tmp);
-				set_flag(N_FLAG, (cpu.y - tmp) & 0x80);
-			}
+			cmp(cpu.y, ramReadByte(cpuRAM[cpu.pc+1]));
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			
 			break;
 		// CMP zp
 		case 0xC5:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				set_flag(C_FLAG, cpu.a >= tmp);
-				set_flag(Z_FLAG, cpu.a == tmp);
-				set_flag(N_FLAG, tmp & 0x80);
-			}
+			cmp(cpu.a, ramReadByte(cpuRAM[cpu.pc+1]));
 			cpu.pc += 2;
 			cpu.cycles += 3;
-			
 			break;
 		// DEC zp
 		case 0xC6:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				--tmp;
-				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-			}
+			ramWriteByte(ARG8, dec(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 
 			break;
 		// INY
 		case 0xC8:
-			++cpu.y;
-			set_flag(Z_FLAG, cpu.y == 0);
-			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
+			cpu.y = inc(cpu.y);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// CMP imm
 		case 0xC9:
-			{
-				uint8_t tmp = cpuRAM[cpu.pc+1];
-				set_flag(C_FLAG, cpu.a >= tmp);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, tmp & 0x80);
-			}
+			cmp(cpu.a, cpuRAM[cpu.pc+1]);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			
 			break;
 		// DEX
 		case 0xCA:
-			--cpu.x;
-			set_flag(Z_FLAG, cpu.x == 0);
-			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
+			cpu.x = dec(cpu.x);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// CMP abs
 		case 0xCD:
-			{
-				uint8_t tmp = ramReadByte(ADDR16(cpuRAM[cpu.pc+1]));
-				set_flag(C_FLAG, cpu.a >= tmp);
-				set_flag(Z_FLAG, cpu.a == tmp);
-				set_flag(N_FLAG, tmp & 0x80);
-			}
+			cmp(cpu.a, ramReadByte(ADDR16(cpuRAM[cpu.pc+1])));
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
 		// DEC abs
 		case 0xCE:
-			{
-				uint8_t tmp = ramReadByte(ADDR16(cpu.pc+1));
-				--tmp;
-				ramWriteByte(ADDR16(cpu.pc+1), tmp);
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-			}
+			ramWriteByte(ARG16, dec(ABS));
 			cpu.pc += 3;
 			cpu.cycles += 6;
 
 			break;
 		// BNE
 		case 0xD0:
-			if((cpu.p & Z_FLAG) == 0) {
-				uint8_t oldPage = cpu.pc >> 8;
-				cpu.pc += (int8_t)cpuRAM[cpu.pc+1];
-				if(cpu.pc>>8 != oldPage) { cpu.cycles += 1; }
-				cpu.cycles += 1;
-			}
+			branch((cpu.p & Z_FLAG) == 0);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// CMP (ind), Y
 		case 0xD1:
-			{
-				uint8_t tmp = ramReadByte(ADDR16(cpuRAM[cpu.pc+1]) + cpu.y);
-				set_flag(C_FLAG, cpu.a >= tmp);
-				set_flag(Z_FLAG, cpu.a == tmp);
-				set_flag(N_FLAG, tmp & 0x80);
-			}
+			cmp(cpu.a, ramReadByte(ADDR16(cpuRAM[cpu.pc+1]) + cpu.y));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
 		// CMP zp, X
 		case 0xD5:
-			{
-				uint8_t tmp = ramReadByte(ramReadByte(cpuRAM[cpu.pc+1]) + cpu.x);
-				set_flag(C_FLAG, cpu.a >= tmp);
-				set_flag(Z_FLAG, cpu.a == tmp);
-				set_flag(N_FLAG, tmp & 0x80);
-			}
+			cmp(cpu.a, ramReadByte(ramReadByte((cpuRAM[cpu.pc+1]) + cpu.x) & 0xFF ));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -862,148 +760,76 @@ uint8_t cpuStep() {
 			break;
 		// DEC abs, X
 		case 0xDE:
-			{
-				uint8_t tmp = ramReadByte(ADDR16(cpu.pc+1));
-				--tmp;
-				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-			}
+			ramWriteByte(ARG16 + cpu.x, dec(ABS_INDEX(cpu.x)));
 			cpu.pc += 3;
 			cpu.cycles += 7;
 
 			break;
 		// CPX imm
 		case 0xE0:
-			{
-				uint8_t tmp = cpuRAM[cpu.pc+1];
-				set_flag(C_FLAG, cpu.x >= tmp);
-				set_flag(Z_FLAG, cpu.x == tmp);
-				set_flag(N_FLAG, (cpu.x - tmp) & 0x80);
-			}
+			cmp(cpu.x, cpuRAM[cpu.pc+1]);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			
 			break;
 		// CPX zp
 		case 0xE4:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				set_flag(C_FLAG, cpu.x >= tmp);
-				set_flag(Z_FLAG, cpu.x == tmp);
-				set_flag(N_FLAG, (cpu.x - tmp) & 0x80);
-			}
+			cmp(cpu.x, ramReadByte(cpuRAM[cpu.pc+1]));
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			
 			break;
 		// SBC zp
 		case 0xE5:
-			{
-				uint8_t byte = ramReadByte(cpuRAM[cpu.pc+1]);
-				uint16_t tmp = cpu.a - byte - (cpu.p & C_FLAG);
-				set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-				cpu.a = tmp & 0xFF;
-				set_flag(C_FLAG, tmp > 255);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			}
+			sbc(ZP);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
 		// INC zp
 		case 0xE6:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1]);
-				++tmp;
-				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-			}
+			ramWriteByte(ARG8, inc(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
 		// INX
 		case 0xE8:
-			++cpu.x;
-			set_flag(Z_FLAG, cpu.x == 0);
-			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
+			cpu.x = inc(cpu.x);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// SBC imm
 		case 0xE9:
-			{
-				uint8_t byte = cpuRAM[cpu.pc+1];
-				uint16_t tmp = cpu.a - byte - (cpu.p & C_FLAG);
-				set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-				cpu.a = tmp & 0xFF;
-				set_flag(C_FLAG, tmp > 255);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			}
+			sbc(IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// INC abs
 		case 0xEE:
-			{
-				uint8_t tmp = ramReadByte(ADDR16(cpu.pc+1)) + 1;
-				ramWriteByte(ADDR16(cpu.pc+1), tmp);
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-			}
+			ramWriteByte(ARG16, inc(ABS));
 			cpu.pc += 3;
 			cpu.cycles += 6;
 			break;
 		// BEQ
 		case 0xF0:
-			if((cpu.p & Z_FLAG) != 0) {
-				uint8_t oldPage = cpu.pc >> 8;
-				cpu.pc += (int8_t)cpuRAM[cpu.pc+1];
-				if(cpu.pc>>8 != oldPage) { cpu.cycles += 1; }
-				cpu.cycles += 1;
-			}
+			branch((cpu.p & Z_FLAG) != 0);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// INC zp, X
 		case 0xF6:
-			{
-				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1] + cpu.x);
-				++tmp;
-				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
-				set_flag(Z_FLAG, tmp == 0);
-				set_flag(N_FLAG, (tmp & 0x80) != 0);
-			}
+			ramWriteByte(ARG8 + cpu.x, ZP_INDEX(cpu.x));
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
 		// SBC abs, Y
 		case 0xF9:
-			{
-				uint8_t byte = ramReadByte(ADDR16(cpu.pc+1) + cpu.y);
-				uint16_t tmp = cpu.a - byte - (cpu.p & C_FLAG);
-				set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-				cpu.a = tmp & 0xFF;
-				set_flag(C_FLAG, tmp > 255);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			}
+			sbc(ABS_INDEX(cpu.y));
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
 		// SBC abs, X
 		case 0xFD:
-			{
-				uint8_t byte = ramReadByte(ADDR16(cpu.pc+1) + cpu.x);
-				uint16_t tmp = cpu.a - byte - (cpu.p & C_FLAG);
-				set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-				cpu.a = tmp & 0xFF;
-				set_flag(C_FLAG, tmp > 255);
-				set_flag(Z_FLAG, cpu.a == 0);
-				set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			}
+			sbc(ABS_INDEX(cpu.x));
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;

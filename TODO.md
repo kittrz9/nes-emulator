@@ -1,4 +1,3 @@
  - fix galaga jumping to some random place in ram after JMP (ind) at C314
- - clean up cpu.c
  - implement the rest of the opcodes
  - dynarec
