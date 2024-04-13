@@ -61,7 +61,7 @@ void branch(uint8_t cond) {
 void cmp(uint8_t reg, uint8_t byte) {
 	set_flag(C_FLAG, reg >= byte);
 	set_flag(Z_FLAG, reg == byte);
-	set_flag(N_FLAG, byte & 0x80);
+	set_flag(N_FLAG, (reg - byte) & 0x80);
 	return;
 }
 
@@ -134,7 +134,7 @@ void adc(uint8_t byte) {
 }
 
 void sbc(uint8_t byte) {
-	uint16_t tmp = cpu.a - byte - (cpu.p & C_FLAG);
+	uint16_t tmp = cpu.a - byte - !(cpu.p & C_FLAG);
 	set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
 	cpu.a = tmp & 0xFF;
 	set_flag(C_FLAG, tmp < 256);
@@ -682,20 +682,20 @@ uint8_t cpuStep() {
 			break;
 		// CPY imm
 		case 0xC0:
-			cmp(cpu.y, cpuRAM[cpu.pc+1]);
+			cmp(cpu.y, IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// CPY zp
 		case 0xC4:
-			cmp(cpu.y, ramReadByte(cpuRAM[cpu.pc+1]));
+			cmp(cpu.y, ZP);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			
 			break;
 		// CMP zp
 		case 0xC5:
-			cmp(cpu.a, ramReadByte(cpuRAM[cpu.pc+1]));
+			cmp(cpu.a, ZP);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
@@ -714,7 +714,7 @@ uint8_t cpuStep() {
 			break;
 		// CMP imm
 		case 0xC9:
-			cmp(cpu.a, cpuRAM[cpu.pc+1]);
+			cmp(cpu.a, IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			
@@ -727,7 +727,7 @@ uint8_t cpuStep() {
 			break;
 		// CMP abs
 		case 0xCD:
-			cmp(cpu.a, ramReadByte(ADDR16(cpuRAM[cpu.pc+1])));
+			cmp(cpu.a, ABS);
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
@@ -752,7 +752,7 @@ uint8_t cpuStep() {
 			break;
 		// CMP zp, X
 		case 0xD5:
-			cmp(cpu.a, ramReadByte(ramReadByte((cpuRAM[cpu.pc+1]) + cpu.x) & 0xFF ));
+			cmp(cpu.a, ZP_INDEX(cpu.x));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -761,6 +761,12 @@ uint8_t cpuStep() {
 			cpu.p &= ~(D_FLAG);
 			cpu.pc += 1;
 			cpu.cycles += 2;
+			break;
+		// CMP abs, Y
+		case 0xD9:
+			cmp(cpu.a, ABS_INDEX(cpu.y));
+			cpu.pc += 3;
+			cpu.cycles += 4;
 			break;
 		// DEC abs, X
 		case 0xDE:
@@ -836,6 +842,12 @@ uint8_t cpuStep() {
 			sbc(ABS_INDEX(cpu.x));
 			cpu.pc += 3;
 			cpu.cycles += 4;
+			break;
+		// INC abs, X
+		case 0xFE:
+			ramWriteByte(ARG16 + cpu.x, inc(ABS_INDEX(cpu.x)));
+			cpu.pc += 3;
+			cpu.cycles += 7;
 			break;
 		default:
 			printf("unimplemented opcode %02X\n", opcode);

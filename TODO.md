@@ -1,3 +1,4 @@
- - fix galaga jumping to some random place in ram after JMP (ind) at C314
  - implement the rest of the opcodes
+ - nametable scrolling
  - dynarec
+ - compile static executable
