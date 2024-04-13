@@ -843,6 +843,17 @@ uint8_t cpuStep() {
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
+		// CMP zp, X
+		case 0xD5:
+			{
+				uint8_t tmp = ramReadByte(ramReadByte(cpuRAM[cpu.pc+1]) + cpu.x);
+				set_flag(C_FLAG, cpu.a >= tmp);
+				set_flag(Z_FLAG, cpu.a == tmp);
+				set_flag(N_FLAG, tmp & 0x80);
+			}
+			cpu.pc += 2;
+			cpu.cycles += 5;
+			break;
 		// CLD
 		case 0xD8:
 			cpu.p &= ~(D_FLAG);
@@ -955,6 +966,18 @@ uint8_t cpuStep() {
 			}
 			cpu.pc += 2;
 			cpu.cycles += 2;
+			break;
+		// INC zp, X
+		case 0xF6:
+			{
+				uint8_t tmp = ramReadByte(cpuRAM[cpu.pc+1] + cpu.x);
+				++tmp;
+				ramWriteByte(cpuRAM[cpu.pc+1], tmp);
+				set_flag(Z_FLAG, tmp == 0);
+				set_flag(N_FLAG, (tmp & 0x80) != 0);
+			}
+			cpu.pc += 2;
+			cpu.cycles += 6;
 			break;
 		// SBC abs, Y
 		case 0xF9:
