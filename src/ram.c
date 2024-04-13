@@ -80,7 +80,9 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x4013:
 		case 0x4015:
 		case 0x4017:
-			printf("writing ppu/apu register %02X isn't implemented\n", addr);
+			#ifdef DEBUG
+				printf("writing ppu/apu register %02X isn't implemented\n", addr);
+			#endif
 			break;
 		default:
 			#ifdef DEBUG

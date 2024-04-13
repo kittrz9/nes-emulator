@@ -15,6 +15,16 @@ cpu_t cpu;
 #define ZP_INDEX(v) ramReadByte((ARG8 + v) & 0xFF)
 #define ABS_INDEX(v) ramReadByte(ARG16 + v)
 
+void cpuDumpState(void) {
+	printf("pc: %04X\n", cpu.pc);
+	printf("opcode: %02X\n", cpuRAM[cpu.pc]);
+	printf("cycles: %u\n", cpu.cycles);
+	printf("a: %02X, x: %02X, y: %02X\n", cpu.a, cpu.x, cpu.y);
+	printf("p: %02X\n", cpu.p);
+	printf("s: %02X\n", cpu.s);
+	printf("\n");
+}
+
 void set_flag(uint8_t flag, uint8_t value) {
 	if(value) {
 		cpu.p |= flag;
@@ -23,7 +33,7 @@ void set_flag(uint8_t flag, uint8_t value) {
 	}
 }
 
-void cpuInit() {
+void cpuInit(void) {
 	cpu.pc = ADDR16(RST_VECTOR);
 	cpu.s = 0xFD;
 	return;
@@ -127,7 +137,7 @@ void sbc(uint8_t byte) {
 	uint16_t tmp = cpu.a - byte - (cpu.p & C_FLAG);
 	set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
 	cpu.a = tmp & 0xFF;
-	set_flag(C_FLAG, tmp > 255);
+	set_flag(C_FLAG, tmp < 256);
 	set_flag(Z_FLAG, cpu.a == 0);
 	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 }
@@ -150,13 +160,7 @@ uint8_t cpuStep() {
 	uint8_t opcode = cpuRAM[cpu.pc];
 
 	#ifdef DEBUG
-		printf("pc: %04X\n", cpu.pc);
-		printf("opcode: %02X\n", opcode);
-		printf("cycles: %u\n", cpu.cycles);
-		printf("a: %02X, x: %02X, y: %02X\n", cpu.a, cpu.x, cpu.y);
-		printf("p: %02X\n", cpu.p);
-		printf("s: %02X\n", cpu.s);
-		printf("\n");
+		cpuDumpState();
 	#endif
 
 	// https://www.masswerk.at/6502/6502_instruction_set.html
@@ -835,6 +839,9 @@ uint8_t cpuStep() {
 			break;
 		default:
 			printf("unimplemented opcode %02X\n", opcode);
+			#ifndef DEBUG
+				cpuDumpState();
+			#endif
 			exit(1);
 	}
 

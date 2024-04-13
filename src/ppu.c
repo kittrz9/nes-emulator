@@ -7,7 +7,6 @@ ppu_t ppu;
 uint8_t ppuRAM[0x4000];
 
 SDL_Window* w;
-SDL_Renderer* r;
 SDL_Surface* windowSurface;
 SDL_Surface* tile;
 SDL_Surface* frameBuffer;
@@ -19,7 +18,6 @@ uint8_t initRenderer(void) {
 	}
 
 	w = SDL_CreateWindow("nesEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
-	r = SDL_CreateRenderer(w, -1, SDL_RENDERER_ACCELERATED);
 	windowSurface = SDL_GetWindowSurface(w);
 	tile = SDL_CreateRGBSurface(0, 8, 8, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 	frameBuffer = SDL_CreateRGBSurface(0, FB_WIDTH, FB_HEIGHT, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
@@ -28,9 +26,9 @@ uint8_t initRenderer(void) {
 
 void uninitRenderer(void) {
 	SDL_FreeSurface(tile);
+	SDL_FreeSurface(frameBuffer);
 	SDL_DestroyWindowSurface(w);
 	SDL_DestroyWindow(w);
-	SDL_DestroyRenderer(r);
 
 	SDL_Quit();
 }
@@ -59,10 +57,8 @@ void drawTile(uint8_t* bitplaneStart, uint8_t x, uint8_t y) {
 }
 
 void render(void) {
-	SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
 	SDL_FillRect(windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT}, 0xFF000000);
 	SDL_FillRect(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, 0xFF000000);
-	SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
 	// draw nametable
 	// only dealing with the first one for now
 	for(uint16_t i = 0; i < 1024; ++i) {
