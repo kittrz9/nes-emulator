@@ -95,7 +95,7 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 }
 
 void drawNametable(uint8_t* bank, uint8_t* table, uint16_t x, uint16_t y) {
-	for(uint16_t i = 0; i < 1024; ++i) {
+	for(uint16_t i = 0; i < 960; ++i) {
 		uint8_t tileID = *(table+i);
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
