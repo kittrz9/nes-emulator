@@ -33,27 +33,54 @@ void uninitRenderer(void) {
 	SDL_Quit();
 }
 
-void drawTile(uint8_t* bitplaneStart, uint8_t x, uint8_t y) {
-	SDL_Rect asdf = {
+#define MIRROR_HORIZONTAL 0x40
+#define MIRROR_VERTICAL 0x80
+
+void drawTile(uint8_t* bitplaneStart, uint8_t x, uint8_t y, uint8_t attribs) {
+	SDL_Rect targetRect = {
 		.x = x,
 		.y = y,
 		.w = 8,
 		.h = 8,
 	};
-	uint32_t* target = tile->pixels;
+	SDL_Rect srcRect = {
+		.x = 0,
+		.y = 0,
+		.w = 8,
+		.h = 8,
+	};
+	uint32_t* target = (uint32_t*)tile->pixels + (attribs & MIRROR_VERTICAL ? 64 : 0);
 	uint8_t* bitplane1 = bitplaneStart;
 	uint8_t* bitplane2 = bitplane1 + 8;
 	for(uint8_t j = 0; j < 8; ++j) {
-		for(uint8_t k = 7; k < 8; --k) {
+		/*if(attribs & MIRROR_HORIZONTAL) {
+			for(uint8_t k = 0; k < 8; ++k) {
+				uint8_t combined = ((*bitplane1 >> k) & 1) | ((*bitplane2 >> k & 1) << 1);
+				*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up pallete stuff
+				++target;
+			}
+		} else {
+			for(uint8_t k = 7; k < 8; --k) {
+				uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
+				*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up pallete stuff
+				++target;
+			}
+		}*/
+		uint8_t k = (attribs & MIRROR_HORIZONTAL ? 0 : 7);
+		while(k < 8) {
 			uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
-			*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up pallete stuff
+			*target = 0xFFFFFF00 | (0xFF * (combined != 0));
 			++target;
+			k += (attribs & MIRROR_HORIZONTAL ? 1 : -1);
+		}
+		if(attribs & MIRROR_VERTICAL) {
+			target -= 16;
 		}
 		//target += tile->pitch;
 		++bitplane1;
 		++bitplane2;
 	}
-	SDL_BlitSurface(tile, &(SDL_Rect){0,0,8,8}, frameBuffer, &asdf);
+	SDL_BlitSurface(tile, &srcRect, frameBuffer, &targetRect);
 }
 
 void render(void) {
@@ -66,17 +93,25 @@ void render(void) {
 		uint8_t tileID = ppuRAM[0x2000 + i];
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
-		drawTile(bitplaneStart, (i%32) * 8, (i/32)*8);
+		drawTile(bitplaneStart, (i%32) * 8, (i/32)*8, 0);
 	}
 	// draw sprites in OAM
 	for(uint8_t i = 0; i < 64; ++i) {
-		//SDL_RenderFillRect(r, &asdf);
+		#ifdef DEBUG
+			SDL_Rect asdf = {
+				.x = ppu.oam[i*4 + 3],
+				.y = ppu.oam[i*4 + 0],
+				.w = 8,
+				.h = 8,
+			};
+			SDL_FillRect(frameBuffer, &asdf, 0xFFFFFF55);
+		#endif
 
 		uint8_t* bank = &ppuRAM[(ppu.control & 0x08 ? 0x1000 : 0x0000)];
 		uint8_t tileID = ppu.oam[i*4 + 1];
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
-		drawTile(bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]);
+		drawTile(bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2]);
 	}
 	SDL_BlitScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT});
 	SDL_UpdateWindowSurface(w);

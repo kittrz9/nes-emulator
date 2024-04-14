@@ -1,4 +1,5 @@
  - fix galaga crashing when starting a new game
+ - fix galaga sprites not rendering right
  - implement the rest of the opcodes
  - nametable scrolling
  - dynarec
