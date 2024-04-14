@@ -42,6 +42,7 @@ int main(int argc, char** argv) {
 		#endif
 		cpu.cycles = 0;
 		ppu.status |= 0x80;
+		ppu.w = 0;
 		if((ppu.control & 0x80) != 0) {
 			push(cpu.pc & 0xFF);
 			push((cpu.pc & 0xFF00) >> 8);

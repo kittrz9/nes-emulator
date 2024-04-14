@@ -9,7 +9,11 @@ uint8_t ppuRAM[0x4000];
 SDL_Window* w;
 SDL_Surface* windowSurface;
 SDL_Surface* tile;
+SDL_Surface* nameTable;
 SDL_Surface* frameBuffer;
+
+#define NAMETABLE_WIDTH 32*8*2
+#define NAMETABLE_HEIGHT 32*8*2
 
 uint8_t initRenderer(void) {
 	if(SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -21,12 +25,14 @@ uint8_t initRenderer(void) {
 	windowSurface = SDL_GetWindowSurface(w);
 	tile = SDL_CreateRGBSurface(0, 8, 16, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 	frameBuffer = SDL_CreateRGBSurface(0, FB_WIDTH, FB_HEIGHT, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+	nameTable = SDL_CreateRGBSurface(0, NAMETABLE_WIDTH, NAMETABLE_HEIGHT, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 	return 0;
 }
 
 void uninitRenderer(void) {
 	SDL_FreeSurface(tile);
 	SDL_FreeSurface(frameBuffer);
+	SDL_FreeSurface(nameTable);
 	SDL_DestroyWindowSurface(w);
 	SDL_DestroyWindow(w);
 
@@ -36,7 +42,7 @@ void uninitRenderer(void) {
 #define MIRROR_HORIZONTAL 0x40
 #define MIRROR_VERTICAL 0x80
 
-void drawTile(uint8_t* bitplaneStart, uint8_t x, uint8_t y, uint8_t attribs) {
+void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, uint8_t attribs) {
 	SDL_Rect targetRect = {
 		.x = x,
 		.y = y,
@@ -80,21 +86,44 @@ void drawTile(uint8_t* bitplaneStart, uint8_t x, uint8_t y, uint8_t attribs) {
 		++bitplane1;
 		++bitplane2;
 	}
-	SDL_BlitSurface(tile, &srcRect, frameBuffer, &targetRect);
+	SDL_BlitSurface(tile, &srcRect, dst, &targetRect);
+}
+
+void drawNametable(uint8_t* bank, uint8_t* table, uint16_t x, uint16_t y) {
+	for(uint16_t i = 0; i < 1024; ++i) {
+		uint8_t tileID = *(table+i);
+
+		uint8_t* bitplaneStart = bank + tileID*8*2;
+		uint16_t xPos = ((i%32)*8 + x) % 480;
+		uint16_t yPos = (i/32)*8 + y;
+		drawTile(nameTable, bitplaneStart, xPos, yPos, 0);
+	}
 }
 
 void render(void) {
 	SDL_FillRect(windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT}, 0xFF000000);
 	SDL_FillRect(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, 0xFF000000);
+	SDL_FillRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, 0xFF000000);
 	// draw nametable
-	// only dealing with the first one for now
-	for(uint16_t i = 0; i < 1024; ++i) {
-		uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
-		uint8_t tileID = ppuRAM[0x2000 + i];
-
-		uint8_t* bitplaneStart = bank + tileID*8*2;
-		drawTile(bitplaneStart, (i%32) * 8, (i/32)*8, 0);
-	}
+	// only dealing with the horizontal mirroring for now
+	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
+	drawNametable(bank, &ppuRAM[0x2000], 0, 0);
+	drawNametable(bank, &ppuRAM[0x2800], 0, 240);
+	drawNametable(bank, &ppuRAM[0x2000], 0, 0);
+	drawNametable(bank, &ppuRAM[0x2800], 256, 240);
+	SDL_Rect srcRect = {
+		.x = ppu.scrollX,
+		.y = ppu.scrollY,
+		.w = 256,
+		.h = 240,
+	};
+	SDL_Rect dstRect = {
+		.x = 0,
+		.y = 0,
+		.w = FB_WIDTH,
+		.h = FB_HEIGHT,
+	};
+	SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
 	// draw sprites in OAM
 	for(uint8_t i = 0; i < 64; ++i) {
 		#ifdef DEBUG
@@ -116,10 +145,10 @@ void render(void) {
 		}
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
-		drawTile(bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2]);
+		drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2]);
 		if(ppu.control & 0x20) {
 			bitplaneStart += 16;
-			drawTile(bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+8, ppu.oam[i*4 + 2]);
+			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+8, ppu.oam[i*4 + 2]);
 		}
 	}
 	SDL_BlitScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT});

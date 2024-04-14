@@ -16,6 +16,8 @@ typedef struct {
 	uint8_t status;
 	uint16_t oamAddr;
 	uint16_t vramAddr;
+	uint8_t scrollX;
+	uint8_t scrollY;
 	uint8_t t;
 	uint8_t x;
 	uint8_t w;

@@ -47,7 +47,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			#ifdef DEBUG
 				printf("writing %02X into ppu %04X\n", byte, ppu.vramAddr);
 			#endif
-			ppuRAM[ppu.vramAddr] = byte;
+			ppuRAM[ppu.vramAddr % 0x4000] = byte;
 			ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
 			break;
 		case 0x4014:
@@ -62,8 +62,15 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			controllerLatch = byte & 0x01;
 			//printf("latch set to %02X\n", byte & 0x01);
 			break;
-		case 0x2002:
 		case 0x2005:
+			if(!ppu.w) {
+				ppu.scrollX = byte;
+			} else {
+				ppu.scrollY = byte;
+			}
+			ppu.w = !ppu.w;
+			break;
+		case 0x2002:
 		case 0x4000:
 		case 0x4001:
 		case 0x4002:
@@ -102,7 +109,7 @@ uint8_t ramReadByte(uint16_t addr) {
 				return tmp;
 			}
 		case 0x2007:
-			return ppuRAM[ppu.vramAddr];
+			return ppuRAM[ppu.vramAddr%0x4000];
 		case 0x2000:
 		case 0x2001:
 		case 0x2003:
