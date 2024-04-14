@@ -1,5 +1,5 @@
  - fix galaga crashing when starting a new game
- - fix galaga sprites not rendering right
+ - fix 8x16 sprite mode
  - implement the rest of the opcodes
  - nametable scrolling
  - dynarec

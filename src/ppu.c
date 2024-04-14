@@ -19,7 +19,7 @@ uint8_t initRenderer(void) {
 
 	w = SDL_CreateWindow("nesEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
 	windowSurface = SDL_GetWindowSurface(w);
-	tile = SDL_CreateRGBSurface(0, 8, 8, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+	tile = SDL_CreateRGBSurface(0, 8, 16, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 	frameBuffer = SDL_CreateRGBSurface(0, FB_WIDTH, FB_HEIGHT, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 	return 0;
 }
@@ -107,11 +107,20 @@ void render(void) {
 			SDL_FillRect(frameBuffer, &asdf, 0xFFFFFF55);
 		#endif
 
-		uint8_t* bank = &ppuRAM[(ppu.control & 0x08 ? 0x1000 : 0x0000)];
 		uint8_t tileID = ppu.oam[i*4 + 1];
+		uint8_t* bank;
+		if(ppu.control & 0x20) {
+			bank = &ppuRAM[(tileID & 1 ? 0x1000 : 0x0000)];
+		} else {
+			bank = &ppuRAM[(ppu.control & 0x08 ? 0x1000 : 0x0000)];
+		}
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
 		drawTile(bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2]);
+		if(ppu.control & 0x20) {
+			bitplaneStart += 16;
+			drawTile(bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+8, ppu.oam[i*4 + 2]);
+		}
 	}
 	SDL_BlitScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT});
 	SDL_UpdateWindowSurface(w);
