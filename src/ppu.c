@@ -114,7 +114,7 @@ void render(void) {
 	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
 	drawNametable(bank, &ppuRAM[0x2000], 0, 0);
 	drawNametable(bank, &ppuRAM[0x2800], 0, 240);
-	drawNametable(bank, &ppuRAM[0x2000], 0, 0);
+	drawNametable(bank, &ppuRAM[0x2000], 256, 0);
 	drawNametable(bank, &ppuRAM[0x2800], 256, 240);
 	SDL_Rect srcRect = {
 		.x = ppu.scrollX,
