@@ -192,7 +192,7 @@ uint8_t cpuStep() {
 			break;
 		// ASL abs
 		case 0x0E:
-			ramWriteByte(ARG16, ABS);
+			ramWriteByte(ARG16, asl(ABS));
 			cpu.pc += 3;
 			cpu.cycles += 6;
 			break;
@@ -292,7 +292,7 @@ uint8_t cpuStep() {
 			break;
 		// EOR zp
 		case 0x45:
-			cpu.a = cpu.a ^ ramReadByte(cpuRAM[cpu.pc+1]);
+			cpu.a = cpu.a ^ ZP;
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.pc += 2;
@@ -312,7 +312,7 @@ uint8_t cpuStep() {
 			break;
 		// EOR imm
 		case 0x49:
-			cpu.a = cpu.a ^ cpuRAM[cpu.pc+1];
+			cpu.a = cpu.a ^ IMM;
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.pc += 2;
@@ -423,19 +423,19 @@ uint8_t cpuStep() {
 			break;
 		// STY zp
 		case 0x84:
-			ramWriteByte(cpuRAM[cpu.pc+1], cpu.y);
+			ramWriteByte(ARG8, cpu.y);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
 		// STA zp
 		case 0x85:
-			ramWriteByte(cpuRAM[cpu.pc+1], cpu.a);
+			ramWriteByte(ARG8, cpu.a);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
 		// STX zp
 		case 0x86:
-			ramWriteByte(cpuRAM[cpu.pc+1], cpu.x);
+			ramWriteByte(ARG8, cpu.x);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
@@ -455,19 +455,19 @@ uint8_t cpuStep() {
 			break;
 		// STY abs
 		case 0x8C:
-			ramWriteByte(ADDR16(cpu.pc+1), cpu.y);
+			ramWriteByte(ARG16, cpu.y);
 			cpu.pc += 3;
 			cpu.cycles += 3;
 			break;
 		// STA abs
 		case 0x8D:
-			ramWriteByte(ADDR16(cpu.pc+1), cpu.a);
+			ramWriteByte(ARG16, cpu.a);
 			cpu.pc += 3;
 			cpu.cycles += 3;
 			break;
 		// STX abs
 		case 0x8E:
-			ramWriteByte(ADDR16(cpu.pc+1), cpu.x);
+			ramWriteByte(ARG16, cpu.x);
 			cpu.pc += 3;
 			cpu.cycles += 3;
 			break;
@@ -523,7 +523,7 @@ uint8_t cpuStep() {
 			break;
 		// LDY imm
 		case 0xA0:
-			cpu.y = cpuRAM[cpu.pc+1];
+			cpu.y = IMM;
 			set_flag(Z_FLAG, cpu.y == 0);
 			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
 			cpu.pc += 2;
@@ -531,7 +531,7 @@ uint8_t cpuStep() {
 			break;
 		// LDX imm
 		case 0xA2:
-			cpu.x = cpuRAM[cpu.pc+1];
+			cpu.x = IMM;
 			cpu.pc += 2;
 			set_flag(Z_FLAG, cpu.x == 0);
 			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
@@ -539,7 +539,7 @@ uint8_t cpuStep() {
 			break;
 		// LDY zp
 		case 0xA4:
-			cpu.y = ramReadByte(cpuRAM[cpu.pc+1]);
+			cpu.y = ZP;
 			cpu.pc += 2;
 			set_flag(Z_FLAG, cpu.y == 0);
 			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
@@ -547,7 +547,7 @@ uint8_t cpuStep() {
 			break;
 		// LDA zp
 		case 0xA5:
-			cpu.a = ramReadByte(cpuRAM[cpu.pc+1]);
+			cpu.a = ZP;
 			cpu.pc += 2;
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
@@ -555,7 +555,7 @@ uint8_t cpuStep() {
 			break;
 		// LDX zp
 		case 0xA6:
-			cpu.x = ramReadByte(cpuRAM[cpu.pc+1]);
+			cpu.x = ZP;
 			cpu.pc += 2;
 			set_flag(Z_FLAG, cpu.x == 0);
 			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
@@ -571,7 +571,7 @@ uint8_t cpuStep() {
 			break;
 		// LDA imm
 		case 0xA9:
-			cpu.a = cpuRAM[cpu.pc+1];
+			cpu.a = IMM;
 			cpu.pc += 2;
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
@@ -587,7 +587,7 @@ uint8_t cpuStep() {
 			break;
 		// LDY abs
 		case 0xAC:
-			cpu.y = ramReadByte(ADDR16(cpu.pc+1));
+			cpu.y = ABS;
 			cpu.pc += 3;
 			set_flag(Z_FLAG, cpu.y == 0);
 			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
@@ -595,7 +595,7 @@ uint8_t cpuStep() {
 			break;
 		// LDA abs
 		case 0xAD:
-			cpu.a = ramReadByte(ADDR16(cpu.pc+1));
+			cpu.a = ABS;
 			cpu.pc += 3;
 			set_flag(Z_FLAG, cpu.a == 0);
 			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
@@ -603,7 +603,7 @@ uint8_t cpuStep() {
 			break;
 		// LDX abs
 		case 0xAE:
-			cpu.x = ramReadByte(ADDR16(cpu.pc+1));
+			cpu.x = ABS;
 			cpu.pc += 3;
 			set_flag(Z_FLAG, cpu.x == 0);
 			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
@@ -768,6 +768,12 @@ uint8_t cpuStep() {
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
+		// CMP abs, X
+		case 0xDD:
+			cmp(cpu.a, ABS_INDEX(cpu.x));
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
 		// DEC abs, X
 		case 0xDE:
 			ramWriteByte(ARG16 + cpu.x, dec(ABS_INDEX(cpu.x)));
@@ -777,14 +783,14 @@ uint8_t cpuStep() {
 			break;
 		// CPX imm
 		case 0xE0:
-			cmp(cpu.x, cpuRAM[cpu.pc+1]);
+			cmp(cpu.x, IMM);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			
 			break;
 		// CPX zp
 		case 0xE4:
-			cmp(cpu.x, ramReadByte(cpuRAM[cpu.pc+1]));
+			cmp(cpu.x, ZP);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			
