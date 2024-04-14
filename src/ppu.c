@@ -39,6 +39,11 @@ void uninitRenderer(void) {
 	SDL_Quit();
 }
 
+void debugScreenshot(void) {
+	SDL_SaveBMP(nameTable, "nametable.bmp");
+	SDL_SaveBMP(frameBuffer, "framebuffer.bmp");
+}
+
 #define MIRROR_HORIZONTAL 0x40
 #define MIRROR_VERTICAL 0x80
 

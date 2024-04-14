@@ -2,5 +2,6 @@
 *.fdb
 *.prg
 *.chr
+*.bmp
 build/
 obj/

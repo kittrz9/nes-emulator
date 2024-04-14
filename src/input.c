@@ -4,6 +4,8 @@
 
 #include <SDL2/SDL.h>
 
+#include "ppu.h"
+
 controller_t controllers[2];
 
 uint8_t controllerLatch;
@@ -49,6 +51,11 @@ uint8_t handleInput(void) {
 		} else {
 			controllers[0].buttons &= ~(1 << i);
 		}
+	}
+
+	if(keys[SDL_SCANCODE_P]) {
+		debugScreenshot();
+		exit(1);
 	}
 	return 0;
 }

@@ -31,6 +31,8 @@ extern uint8_t ppuRAM[0x4000];
 uint8_t initRenderer(void);
 void uninitRenderer(void);
 
+void debugScreenshot(void);
+
 void render(void);
 
 #endif
