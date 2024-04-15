@@ -1,6 +1,5 @@
  - fix 8x16 sprite mode
- - fix scrolling
+ - fully implement nametable mirroring
  - implement the rest of the opcodes
- - nametable scrolling
  - dynarec
  - compile static executable

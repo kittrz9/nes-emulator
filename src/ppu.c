@@ -99,8 +99,8 @@ void drawNametable(uint8_t* bank, uint8_t* table, uint16_t x, uint16_t y) {
 		uint8_t tileID = *(table+i);
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
-		uint16_t xPos = (i%32)*8 + x;
-		uint16_t yPos = (i/32)*8 + y;
+		uint16_t xPos = ((i%32)*8 + x) % 512;
+		uint16_t yPos = ((i/32)*8 + y) % 480;
 		drawTile(nameTable, bitplaneStart, xPos, yPos, 0);
 	}
 }
@@ -116,9 +116,11 @@ void render(void) {
 	drawNametable(bank, &ppuRAM[0x2800], 0, 240);
 	drawNametable(bank, &ppuRAM[0x2000], 256, 0);
 	drawNametable(bank, &ppuRAM[0x2800], 256, 240);
+	uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
+	uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
 	SDL_Rect srcRect = {
-		.x = ppu.scrollX,
-		.y = ppu.scrollY,
+		.x = scrollX,
+		.y = scrollY,
 		.w = 256,
 		.h = 240,
 	};
@@ -129,6 +131,14 @@ void render(void) {
 		.h = FB_HEIGHT,
 	};
 	SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
+	if(scrollY + 240 > 480) {
+		srcRect.y -= 480;
+		SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
+	}
+	if(scrollX + 256 > 512) {
+		srcRect.y -= 512;
+		SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
+	}
 	// draw sprites in OAM
 	for(uint8_t i = 0; i < 64; ++i) {
 		#ifdef DEBUG
