@@ -116,8 +116,8 @@ void debugScreenshot(void) {
 	SDL_SaveBMP(frameBuffer, "framebuffer.bmp");
 }
 
-#define MIRROR_HORIZONTAL 0x40
-#define MIRROR_VERTICAL 0x80
+#define FLIP_HORIZONTAL 0x40
+#define FLIP_VERTICAL 0x80
 
 void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, uint8_t attribs, uint8_t paletteIndex) {
 	SDL_Rect targetRect = {
@@ -132,11 +132,11 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 		.w = 8,
 		.h = 8,
 	};
-	uint32_t* target = (uint32_t*)tile->pixels + (attribs & MIRROR_VERTICAL ? 64 : 0);
+	uint32_t* target = (uint32_t*)tile->pixels + (attribs & FLIP_VERTICAL ? 56 : 0);
 	uint8_t* bitplane1 = bitplaneStart;
 	uint8_t* bitplane2 = bitplane1 + 8;
 	for(uint8_t j = 0; j < 8; ++j) {
-		/*if(attribs & MIRROR_HORIZONTAL) {
+		/*if(attribs & FLIP_HORIZONTAL) {
 			for(uint8_t k = 0; k < 8; ++k) {
 				uint8_t combined = ((*bitplane1 >> k) & 1) | ((*bitplane2 >> k & 1) << 1);
 				*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up palette stuff
@@ -149,7 +149,7 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 				++target;
 			}
 		}*/
-		uint8_t k = (attribs & MIRROR_HORIZONTAL ? 0 : 7);
+		uint8_t k = (attribs & FLIP_HORIZONTAL ? 0 : 7);
 		while(k < 8) {
 			uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
 			if(paletteIndex > 0x1F) {
@@ -165,9 +165,9 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 					/* A */ (combined == 0 ? 0 : 0xFF);
 			}
 			++target;
-			k += (attribs & MIRROR_HORIZONTAL ? 1 : -1);
+			k += (attribs & FLIP_HORIZONTAL ? 1 : -1);
 		}
-		if(attribs & MIRROR_VERTICAL) {
+		if(attribs & FLIP_VERTICAL) {
 			target -= 16;
 		}
 		//target += tile->pitch;
@@ -246,10 +246,18 @@ void render(void) {
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
 		uint8_t paletteIndex = 0x10 | ((ppu.oam[i*4 + 2]&0x3) << 2);
-		drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2], paletteIndex);
 		if(ppu.control & 0x20) {
+			uint8_t sprite1Off = 0;
+			uint8_t sprite2Off = 8;
+			if(ppu.oam[i*4 + 2] & FLIP_VERTICAL) {
+				sprite1Off = 8;
+				sprite2Off = 0;
+			}
+			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+sprite1Off, ppu.oam[i*4 + 2], paletteIndex);
 			bitplaneStart += 16;
-			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+8, ppu.oam[i*4 + 2], paletteIndex);
+			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+sprite2Off, ppu.oam[i*4 + 2], paletteIndex);
+		} else {
+			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2], paletteIndex);
 		}
 	}
 	SDL_BlitScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT});
