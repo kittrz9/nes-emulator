@@ -615,7 +615,6 @@ uint8_t cpuStep() {
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
-			break;
 		// LDA (ind), Y
 		case 0xB1:
 			cpu.a = ramReadByte(ADDR16(cpuRAM[cpu.pc+1])+cpu.y);
@@ -628,8 +627,8 @@ uint8_t cpuStep() {
 		case 0xB4:
 			cpu.y = ramReadByte(cpuRAM[cpu.pc+1]+ cpu.x);
 			cpu.pc += 2;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			set_flag(Z_FLAG, cpu.y == 0);
+			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
 		// LDA zp, X
@@ -660,8 +659,8 @@ uint8_t cpuStep() {
 		case 0xBC:
 			cpu.y = ABS_INDEX(cpu.x);
 			cpu.pc += 3;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			set_flag(Z_FLAG, cpu.y == 0);
+			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
 		// LDA abs, X
@@ -675,8 +674,8 @@ uint8_t cpuStep() {
 		// LDX abs, Y
 		case 0xBE:
 			cpu.a = ABS_INDEX(cpu.y);
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			set_flag(Z_FLAG, cpu.x == 0);
+			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;

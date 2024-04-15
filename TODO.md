@@ -1,4 +1,3 @@
- - fix galaga crashing when starting a new game
  - fix 8x16 sprite mode
  - fix scrolling
  - implement the rest of the opcodes
