@@ -240,6 +240,7 @@ void render(void) {
 		uint8_t* bank;
 		if(ppu.control & 0x20) {
 			bank = &ppuRAM[(tileID & 1 ? 0x1000 : 0x0000)];
+			tileID &= ~1;
 		} else {
 			bank = &ppuRAM[(ppu.control & 0x08 ? 0x1000 : 0x0000)];
 		}
