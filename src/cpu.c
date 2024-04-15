@@ -14,6 +14,13 @@ cpu_t cpu;
 #define ABS ramReadByte(ARG16)
 #define ZP_INDEX(v) ramReadByte((ARG8 + v) & 0xFF)
 #define ABS_INDEX(v) ramReadByte(ARG16 + v)
+#define INDIR_INDEX_Y ramReadByte(ADDR16(ARG8)+cpu.y)
+
+#define ZP_ADDR ARG8
+#define ABS_ADDR ARG16
+#define ZP_INDEX_ADDR(v) ((ARG8 + v) & 0xFF)
+#define ABS_INDEX_ADDR(v) (ARG16 + v)
+#define INDIR_INDEX_Y_ADDR (ADDR16(ARG8)+cpu.y)
 
 void cpuDumpState(void) {
 	printf("pc: %04X\n", cpu.pc);
@@ -162,6 +169,21 @@ uint8_t inc(uint8_t byte) {
 	return byte;
 }
 
+// using pointers here since I don't have to worry about affect ram
+void load(uint8_t* reg, uint8_t byte) {
+	*reg = byte;
+	set_flag(Z_FLAG, *reg == 0);
+	set_flag(N_FLAG, (*reg & 0x80) != 0);
+	return;
+}
+
+void transfer(uint8_t* reg, uint8_t byte) {
+	*reg = byte;
+	set_flag(Z_FLAG, *reg == 0);
+	set_flag(N_FLAG, (*reg & 0x80) != 0);
+	return;
+}
+
 uint8_t cpuStep(void) {
 	uint8_t opcode = cpuRAM[cpu.pc];
 
@@ -180,7 +202,7 @@ uint8_t cpuStep(void) {
 			break;
 		// ASL zp
 		case 0x06:
-			ramWriteByte(ARG8, asl(ZP));
+			ramWriteByte(ZP_ADDR, asl(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -210,7 +232,7 @@ uint8_t cpuStep(void) {
 			break;
 		// ASL abs
 		case 0x0E:
-			ramWriteByte(ARG16, asl(ABS));
+			ramWriteByte(ABS_ADDR, asl(ABS));
 			cpu.pc += 3;
 			cpu.cycles += 6;
 			break;
@@ -255,7 +277,7 @@ uint8_t cpuStep(void) {
 			break;
 		// ROL zp
 		case 0x26:
-			ramWriteByte(ARG8, rol(ZP));
+			ramWriteByte(ZP_ADDR, rol(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -291,7 +313,7 @@ uint8_t cpuStep(void) {
 			break;
 		// ROL abs
 		case 0x2E:
-			ramWriteByte(ARG16, rol(ABS));
+			ramWriteByte(ABS_ADDR, rol(ABS));
 			cpu.pc += 3;
 			cpu.cycles += 7;
 			break;
@@ -334,7 +356,7 @@ uint8_t cpuStep(void) {
 			break;
 		// LSR zp
 		case 0x46:
-			ramWriteByte(ARG8, lsr(ZP));
+			ramWriteByte(ZP_ADDR, lsr(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -346,9 +368,7 @@ uint8_t cpuStep(void) {
 			break;
 		// EOR imm
 		case 0x49:
-			cpu.a = cpu.a ^ IMM;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			eor(IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
@@ -360,12 +380,12 @@ uint8_t cpuStep(void) {
 			break;
 		// JMP abs
 		case 0x4C:
-			cpu.pc = ARG16;
+			cpu.pc = ABS_ADDR;
 			cpu.cycles += 3;
 			break;
 		// LSR abs
 		case 0x4E:
-			ramWriteByte(ARG16, lsr(ABS));
+			ramWriteByte(ABS_ADDR, lsr(ABS));
 			cpu.pc += 3;
 			cpu.cycles += 6;
 			break;
@@ -402,7 +422,7 @@ uint8_t cpuStep(void) {
 			break;
 		// ROR zp
 		case 0x66:
-			ramWriteByte(ARG8, ror(ZP));
+			ramWriteByte(ZP_ADDR, ror(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -439,7 +459,7 @@ uint8_t cpuStep(void) {
 			break;
 		// ADC (ind), Y
 		case 0x71:
-			adc(ramReadByte(ADDR16(ramReadByte(cpu.pc+1)) + cpu.y));
+			adc(INDIR_INDEX_Y);
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -451,7 +471,7 @@ uint8_t cpuStep(void) {
 			break;
 		// ROR zp, X
 		case 0x76:
-			ramWriteByte(ARG8, ror(ZP));
+			ramWriteByte(ZP_ADDR, ror(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
@@ -475,25 +495,25 @@ uint8_t cpuStep(void) {
 			break;
 		// ROR abs, X
 		case 0x7E:
-			ramWriteByte(ARG16 + cpu.x, ror(ABS_INDEX(cpu.x)));
+			ramWriteByte(ABS_INDEX_ADDR(cpu.x), ror(ABS_INDEX(cpu.x)));
 			cpu.pc += 3;
 			cpu.cycles += 7;
 			break;
 		// STY zp
 		case 0x84:
-			ramWriteByte(ARG8, cpu.y);
+			ramWriteByte(ZP_ADDR, cpu.y);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
 		// STA zp
 		case 0x85:
-			ramWriteByte(ARG8, cpu.a);
+			ramWriteByte(ZP_ADDR, cpu.a);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
 		// STX zp
 		case 0x86:
-			ramWriteByte(ARG8, cpu.x);
+			ramWriteByte(ZP_ADDR, cpu.x);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
@@ -505,27 +525,25 @@ uint8_t cpuStep(void) {
 			break;
 		// TXA
 		case 0x8A:
-			cpu.a = cpu.x;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			transfer(&cpu.a, cpu.x);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// STY abs
 		case 0x8C:
-			ramWriteByte(ARG16, cpu.y);
+			ramWriteByte(ABS_ADDR, cpu.y);
 			cpu.pc += 3;
 			cpu.cycles += 3;
 			break;
 		// STA abs
 		case 0x8D:
-			ramWriteByte(ARG16, cpu.a);
+			ramWriteByte(ABS_ADDR, cpu.a);
 			cpu.pc += 3;
 			cpu.cycles += 3;
 			break;
 		// STX abs
 		case 0x8E:
-			ramWriteByte(ARG16, cpu.x);
+			ramWriteByte(ABS_ADDR, cpu.x);
 			cpu.pc += 3;
 			cpu.cycles += 3;
 			break;
@@ -537,33 +555,31 @@ uint8_t cpuStep(void) {
 			break;
 		// STA (ind), Y
 		case 0x91:
-			ramWriteByte(ADDR16(cpuRAM[cpu.pc+1])+cpu.y, cpu.a);
+			ramWriteByte(INDIR_INDEX_Y_ADDR, cpu.a);
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
 		// STY zp, X
 		case 0x94:
-			ramWriteByte((cpuRAM[cpu.pc+1] + cpu.x) & 0xFF, cpu.y);
+			ramWriteByte(ZP_INDEX_ADDR(cpu.x), cpu.y);
 			cpu.pc += 2;
 			cpu.cycles += 4;
 			break;
 		// STA zp, X
 		case 0x95:
-			ramWriteByte((cpuRAM[cpu.pc+1] + cpu.x) & 0xFF, cpu.a);
+			ramWriteByte(ZP_INDEX_ADDR(cpu.x), cpu.a);
 			cpu.pc += 2;
 			cpu.cycles += 4;
 			break;
 		// TYA
 		case 0x98:
-			cpu.a = cpu.y;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			transfer(&cpu.a, cpu.y);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// STA abs, Y
 		case 0x99:
-			ramWriteByte(ADDR16(cpu.pc+1)+cpu.y, cpu.a);
+			ramWriteByte(ABS_INDEX_ADDR(cpu.y), cpu.a);
 			cpu.pc += 3;
 			cpu.cycles += 5;
 			break;
@@ -575,96 +591,74 @@ uint8_t cpuStep(void) {
 			break;
 		// STA abs, X
 		case 0x9D:
-			ramWriteByte(ADDR16(cpu.pc+1)+cpu.x, cpu.a);
+			ramWriteByte(ABS_INDEX_ADDR(cpu.x), cpu.a);
 			cpu.pc += 3;
 			cpu.cycles += 5;
 			break;
 		// LDY imm
 		case 0xA0:
-			cpu.y = IMM;
-			set_flag(Z_FLAG, cpu.y == 0);
-			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
+			load(&cpu.y, IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
 		// LDX imm
 		case 0xA2:
-			cpu.x = IMM;
+			load(&cpu.x, IMM);
 			cpu.pc += 2;
-			set_flag(Z_FLAG, cpu.x == 0);
-			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
 			cpu.cycles += 2;
 			break;
 		// LDY zp
 		case 0xA4:
-			cpu.y = ZP;
+			load(&cpu.y, ZP);
 			cpu.pc += 2;
-			set_flag(Z_FLAG, cpu.y == 0);
-			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
 			cpu.cycles += 3;
 			break;
 		// LDA zp
 		case 0xA5:
-			cpu.a = ZP;
+			load(&cpu.a, ZP);
 			cpu.pc += 2;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.cycles += 3;
 			break;
 		// LDX zp
 		case 0xA6:
-			cpu.x = ZP;
+			load(&cpu.x, ZP);
 			cpu.pc += 2;
-			set_flag(Z_FLAG, cpu.x == 0);
-			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
 			cpu.cycles += 3;
 			break;
 		// TAY
 		case 0xA8:
-			cpu.y = cpu.a;
-			set_flag(Z_FLAG, cpu.y == 0);
-			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
+			transfer(&cpu.y, cpu.a);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// LDA imm
 		case 0xA9:
-			cpu.a = IMM;
+			load(&cpu.a, IMM);
 			cpu.pc += 2;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.cycles += 2;
 			break;
 		// TAX
 		case 0xAA:
-			cpu.x = cpu.a;
-			set_flag(Z_FLAG, cpu.x == 0);
-			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
+			transfer(&cpu.x, cpu.a);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// LDY abs
 		case 0xAC:
-			cpu.y = ABS;
+			load(&cpu.y, ABS);
 			cpu.pc += 3;
-			set_flag(Z_FLAG, cpu.y == 0);
-			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
 		// LDA abs
 		case 0xAD:
-			cpu.a = ABS;
+			load(&cpu.a, ABS);
 			cpu.pc += 3;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
 		// LDX abs
 		case 0xAE:
-			cpu.x = ABS;
+			load(&cpu.x, ABS);
 			cpu.pc += 3;
-			set_flag(Z_FLAG, cpu.x == 0);
-			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
 		// BCS
@@ -675,65 +669,49 @@ uint8_t cpuStep(void) {
 			break;
 		// LDA (ind), Y
 		case 0xB1:
-			cpu.a = ramReadByte(ADDR16(cpuRAM[cpu.pc+1])+cpu.y);
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
-			cpu.cycles += 5; // figure out what the docs mean when they say to add 1 cycle when it "crosses a page boundary" here
+			load(&cpu.a, INDIR_INDEX_Y);
 			cpu.pc += 2;
+			cpu.cycles += 5; // figure out what the docs mean when they say to add 1 cycle when it "crosses a page boundary" here
 			break;
 		// LDY zp, X
 		case 0xB4:
-			cpu.y = ramReadByte(cpuRAM[cpu.pc+1]+ cpu.x);
+			load(&cpu.y, ZP_INDEX(cpu.x));
 			cpu.pc += 2;
-			set_flag(Z_FLAG, cpu.y == 0);
-			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
 		// LDA zp, X
 		case 0xB5:
-			cpu.a = ramReadByte(cpuRAM[cpu.pc+1]+ cpu.x);
+			load(&cpu.a, ZP_INDEX(cpu.x));
 			cpu.pc += 2;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
 		// LDA abs, Y
 		case 0xB9:
-			cpu.a = ABS_INDEX(cpu.y);
+			load(&cpu.a, ABS_INDEX(cpu.y));
 			cpu.pc += 3;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
 		// TSX
 		case 0xBA:
-			cpu.x = cpu.s;
-			set_flag(Z_FLAG, cpu.x == 0);
-			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
+			transfer(&cpu.x, cpu.s);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
 		// LDY abs, X
 		case 0xBC:
-			cpu.y = ABS_INDEX(cpu.x);
+			load(&cpu.y, ABS_INDEX(cpu.x));
 			cpu.pc += 3;
-			set_flag(Z_FLAG, cpu.y == 0);
-			set_flag(N_FLAG, (cpu.y & 0x80) != 0);
 			cpu.cycles += 4;
 			break;
 		// LDA abs, X
 		case 0xBD:
-			cpu.a = ABS_INDEX(cpu.x);
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			load(&cpu.a, ABS_INDEX(cpu.x));
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
 		// LDX abs, Y
 		case 0xBE:
-			cpu.a = ABS_INDEX(cpu.y);
-			set_flag(Z_FLAG, cpu.x == 0);
-			set_flag(N_FLAG, (cpu.x & 0x80) != 0);
+			load(&cpu.x, ABS_INDEX(cpu.y));
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
@@ -758,7 +736,7 @@ uint8_t cpuStep(void) {
 			break;
 		// DEC zp
 		case 0xC6:
-			ramWriteByte(ARG8, dec(ZP));
+			ramWriteByte(ZP_ADDR, dec(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 
@@ -790,7 +768,7 @@ uint8_t cpuStep(void) {
 			break;
 		// DEC abs
 		case 0xCE:
-			ramWriteByte(ARG16, dec(ABS));
+			ramWriteByte(ABS_ADDR, dec(ABS));
 			cpu.pc += 3;
 			cpu.cycles += 6;
 
@@ -803,7 +781,7 @@ uint8_t cpuStep(void) {
 			break;
 		// CMP (ind), Y
 		case 0xD1:
-			cmp(cpu.a, ramReadByte(ADDR16(cpuRAM[cpu.pc+1]) + cpu.y));
+			cmp(cpu.a, INDIR_INDEX_Y);
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -833,7 +811,7 @@ uint8_t cpuStep(void) {
 			break;
 		// DEC abs, X
 		case 0xDE:
-			ramWriteByte(ARG16 + cpu.x, dec(ABS_INDEX(cpu.x)));
+			ramWriteByte(ABS_INDEX_ADDR(cpu.x), dec(ABS_INDEX(cpu.x)));
 			cpu.pc += 3;
 			cpu.cycles += 7;
 
@@ -860,7 +838,7 @@ uint8_t cpuStep(void) {
 			break;
 		// INC zp
 		case 0xE6:
-			ramWriteByte(ARG8, inc(ZP));
+			ramWriteByte(ZP_ADDR, inc(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
@@ -889,7 +867,7 @@ uint8_t cpuStep(void) {
 			break;
 		// INC abs
 		case 0xEE:
-			ramWriteByte(ARG16, inc(ABS));
+			ramWriteByte(ABS_ADDR, inc(ABS));
 			cpu.pc += 3;
 			cpu.cycles += 6;
 			break;
@@ -907,7 +885,7 @@ uint8_t cpuStep(void) {
 			break;
 		// INC zp, X
 		case 0xF6:
-			ramWriteByte(ARG8 + cpu.x, ZP_INDEX(cpu.x));
+			ramWriteByte(ZP_INDEX_ADDR(cpu.x), ZP_INDEX(cpu.x));
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
@@ -925,7 +903,7 @@ uint8_t cpuStep(void) {
 			break;
 		// INC abs, X
 		case 0xFE:
-			ramWriteByte(ARG16 + cpu.x, inc(ABS_INDEX(cpu.x)));
+			ramWriteByte(ABS_INDEX_ADDR(cpu.x), inc(ABS_INDEX(cpu.x)));
 			cpu.pc += 3;
 			cpu.cycles += 7;
 			break;
