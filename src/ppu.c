@@ -99,7 +99,7 @@ void drawNametable(uint8_t* bank, uint8_t* table, uint16_t x, uint16_t y) {
 		uint8_t tileID = *(table+i);
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
-		uint16_t xPos = ((i%32)*8 + x) % 480;
+		uint16_t xPos = (i%32)*8 + x;
 		uint16_t yPos = (i/32)*8 + y;
 		drawTile(nameTable, bitplaneStart, xPos, yPos, 0);
 	}

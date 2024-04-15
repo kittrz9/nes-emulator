@@ -190,6 +190,12 @@ uint8_t cpuStep() {
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
+		// ORA abs
+		case 0x0D:
+			ora(ABS);
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
 		// ASL abs
 		case 0x0E:
 			ramWriteByte(ARG16, asl(ABS));
@@ -207,6 +213,12 @@ uint8_t cpuStep() {
 			cpu.p &= ~(C_FLAG);
 			cpu.pc += 1;
 			cpu.cycles += 2;
+			break;
+		// ORA abs, X
+		case 0x1D:
+			ora(ABS_INDEX(cpu.x));
+			cpu.pc += 3;
+			cpu.cycles += 4;
 			break;
 		// JSR
 		case 0x20:
@@ -829,6 +841,12 @@ uint8_t cpuStep() {
 			branch((cpu.p & Z_FLAG) != 0);
 			cpu.pc += 2;
 			cpu.cycles += 2;
+			break;
+		// SBC zp, X
+		case 0xF5:
+			sbc(ZP_INDEX(cpu.x));
+			cpu.pc += 2;
+			cpu.cycles += 4;
 			break;
 		// INC zp, X
 		case 0xF6:
