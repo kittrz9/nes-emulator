@@ -86,6 +86,12 @@ void and_a(uint8_t byte) {
 	return;
 }
 
+void eor(uint8_t byte) {
+	cpu.a = cpu.a ^ byte;
+	set_flag(Z_FLAG, cpu.a == 0);
+	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+}
+
 // return result so it can be put into ram or A
 uint8_t asl(uint8_t byte) {
 	set_flag(C_FLAG, byte & 0x80);
@@ -178,6 +184,12 @@ uint8_t cpuStep() {
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
+		// PHP
+		case 0x08:
+			push(cpu.p);
+			cpu.pc += 1;
+			cpu.cycles += 3;
+			break;
 		// ORA imm
 		case 0x09:
 			ora(IMM);
@@ -247,6 +259,12 @@ uint8_t cpuStep() {
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
+		// PLP
+		case 0x28:
+			cpu.p = pop();
+			cpu.pc += 1;
+			cpu.cycles += 4;
+			break;
 		// AND imm
 		case 0x29:
 			and_a(IMM);
@@ -283,6 +301,12 @@ uint8_t cpuStep() {
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
+		// AND zp, X
+		case 0x35:
+			and_a(ZP_INDEX(cpu.x));
+			cpu.pc += 2;
+			cpu.cycles += 4;
+			break;
 		// SEC
 		case 0x38:
 			cpu.p |= C_FLAG;
@@ -304,9 +328,7 @@ uint8_t cpuStep() {
 			break;
 		// EOR zp
 		case 0x45:
-			cpu.a = cpu.a ^ ZP;
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			eor(ZP);
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			break;
@@ -340,6 +362,24 @@ uint8_t cpuStep() {
 		case 0x4C:
 			cpu.pc = ARG16;
 			cpu.cycles += 3;
+			break;
+		// LSR abs
+		case 0x4E:
+			ramWriteByte(ARG16, lsr(ABS));
+			cpu.pc += 3;
+			cpu.cycles += 6;
+			break;
+		// BVC
+		case 0x50:
+			branch((cpu.p & V_FLAG) == 0);
+			cpu.pc += 2;
+			cpu.cycles += 2;
+			break;
+		// EOR zp, X
+		case 0x55:
+			eor(ZP_INDEX(cpu.x));
+			cpu.pc += 2;
+			cpu.cycles += 4;
 			break;
 		// CLI
 		case 0x58:
@@ -408,6 +448,12 @@ uint8_t cpuStep() {
 			adc(ZP_INDEX(cpu.x));
 			cpu.pc += 2;
 			cpu.cycles += 4;
+			break;
+		// ROR zp, X
+		case 0x76:
+			ramWriteByte(ARG8, ror(ZP));
+			cpu.pc += 2;
+			cpu.cycles += 6;
 			break;
 		// SEI
 		case 0x78:
@@ -829,6 +875,17 @@ uint8_t cpuStep() {
 			sbc(IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
+			break;
+		// NOP
+		case 0xEA:
+			cpu.pc += 1;
+			cpu.cycles += 2;
+			break;
+		// SBC abs
+		case 0xED:
+			sbc(ABS);
+			cpu.pc += 3;
+			cpu.cycles += 4;
 			break;
 		// INC abs
 		case 0xEE:
