@@ -1,4 +1,5 @@
  - fix 8x16 sprite mode
+ - draw the nametable using the palette
  - fully implement nametable mirroring
  - implement the rest of the opcodes
  - dynarec

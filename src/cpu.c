@@ -44,7 +44,7 @@ void push(uint8_t byte) {
 	return;
 }
 
-uint8_t pop() {
+uint8_t pop(void) {
 	return ramReadByte(0x100 + ++cpu.s);
 }
 
@@ -162,7 +162,7 @@ uint8_t inc(uint8_t byte) {
 	return byte;
 }
 
-uint8_t cpuStep() {
+uint8_t cpuStep(void) {
 	uint8_t opcode = cpuRAM[cpu.pc];
 
 	#ifdef DEBUG

@@ -15,6 +15,78 @@ SDL_Surface* frameBuffer;
 #define NAMETABLE_WIDTH 32*8*2
 #define NAMETABLE_HEIGHT 32*8*2
 
+// generated with this: https://github.com/Gumball2415/palgen-persune
+// palgen_persune.py -o test -f ".h uint8_t"
+uint8_t paletteColors[] = {
+	0x62, 0x62, 0x62,
+	0x00, 0x1f, 0xb2,
+	0x24, 0x04, 0xc8,
+	0x52, 0x00, 0xb2,
+	0x73, 0x00, 0x76,
+	0x80, 0x00, 0x24,
+	0x73, 0x0b, 0x00,
+	0x52, 0x28, 0x00,
+	0x24, 0x44, 0x00,
+	0x00, 0x57, 0x00,
+	0x00, 0x5c, 0x00,
+	0x00, 0x53, 0x24,
+	0x00, 0x3c, 0x76,
+	0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00,
+
+	0xab, 0xab, 0xab,
+	0x17, 0x50, 0xff,
+	0x55, 0x2a, 0xff,
+	0x94, 0x10, 0xff,
+	0xc2, 0x08, 0xc5,
+	0xd3, 0x16, 0x55,
+	0xc2, 0x34, 0x00,
+	0x94, 0x5b, 0x00,
+	0x55, 0x81, 0x00,
+	0x17, 0x9b, 0x00,
+	0x00, 0xa2, 0x00,
+	0x00, 0x95, 0x55,
+	0x00, 0x77, 0xc5,
+	0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00,
+
+	0xff, 0xff, 0xff,
+	0x65, 0xa0, 0xff,
+	0xa6, 0x79, 0xff,
+	0xe7, 0x5e, 0xff,
+	0xff, 0x56, 0xff,
+	0xff, 0x64, 0xa6,
+	0xff, 0x83, 0x32,
+	0xe7, 0xac, 0x00,
+	0xa6, 0xd3, 0x00,
+	0x65, 0xef, 0x00,
+	0x36, 0xf6, 0x32,
+	0x24, 0xe9, 0xa6,
+	0x36, 0xc9, 0xff,
+	0x4e, 0x4e, 0x4e,
+	0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00,
+
+	0xff, 0xff, 0xff,
+	0xc1, 0xd9, 0xff,
+	0xdb, 0xc9, 0xff,
+	0xf6, 0xbe, 0xff,
+	0xff, 0xbb, 0xff,
+	0xff, 0xc1, 0xdb,
+	0xff, 0xcd, 0xad,
+	0xf6, 0xde, 0x8b,
+	0xdb, 0xed, 0x7e,
+	0xc1, 0xf8, 0x8b,
+	0xae, 0xfc, 0xad,
+	0xa7, 0xf6, 0xdb,
+	0xae, 0xe9, 0xff,
+	0xb8, 0xb8, 0xb8,
+	0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00,
+};
+
 uint8_t initRenderer(void) {
 	if(SDL_Init(SDL_INIT_VIDEO) < 0) {
 		printf("could not init SDL\n");
@@ -47,7 +119,7 @@ void debugScreenshot(void) {
 #define MIRROR_HORIZONTAL 0x40
 #define MIRROR_VERTICAL 0x80
 
-void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, uint8_t attribs) {
+void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, uint8_t attribs, uint8_t paletteIndex) {
 	SDL_Rect targetRect = {
 		.x = x,
 		.y = y,
@@ -67,20 +139,31 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 		/*if(attribs & MIRROR_HORIZONTAL) {
 			for(uint8_t k = 0; k < 8; ++k) {
 				uint8_t combined = ((*bitplane1 >> k) & 1) | ((*bitplane2 >> k & 1) << 1);
-				*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up pallete stuff
+				*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up palette stuff
 				++target;
 			}
 		} else {
 			for(uint8_t k = 7; k < 8; --k) {
 				uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
-				*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up pallete stuff
+				*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up palette stuff
 				++target;
 			}
 		}*/
 		uint8_t k = (attribs & MIRROR_HORIZONTAL ? 0 : 7);
 		while(k < 8) {
 			uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
-			*target = 0xFFFFFF00 | (0xFF * (combined != 0));
+			if(paletteIndex > 0x1F) {
+				*target = 0xFFFFFF00 | (0xFF * (combined != 0));
+			} else {
+				uint8_t newIndex = paletteIndex | combined;
+				uint8_t* palette = &ppuRAM[0x3F00];
+				uint8_t* paletteColor = &paletteColors[palette[newIndex]*3];
+				*target = \
+					/* R */ paletteColor[0] << 24 |
+					/* G */ paletteColor[1] << 16 |
+					/* B */ paletteColor[2] << 8 |
+					/* A */ (combined == 0 ? 0 : 0xFF);
+			}
 			++target;
 			k += (attribs & MIRROR_HORIZONTAL ? 1 : -1);
 		}
@@ -94,14 +177,16 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 	SDL_BlitSurface(tile, &srcRect, dst, &targetRect);
 }
 
-void drawNametable(uint8_t* bank, uint8_t* table, uint16_t x, uint16_t y) {
+void drawNametable(uint8_t* bank, uint16_t tableAddr, uint16_t x, uint16_t y) {
+	uint8_t* table = &ppuRAM[tableAddr];
+	uint8_t* attribTable = table + 960;
 	for(uint16_t i = 0; i < 960; ++i) {
 		uint8_t tileID = *(table+i);
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
 		uint16_t xPos = ((i%32)*8 + x) % 512;
 		uint16_t yPos = ((i/32)*8 + y) % 480;
-		drawTile(nameTable, bitplaneStart, xPos, yPos, 0);
+		drawTile(nameTable, bitplaneStart, xPos, yPos, 0, 0x20);
 	}
 }
 
@@ -112,10 +197,10 @@ void render(void) {
 	// draw nametable
 	// only dealing with the horizontal mirroring for now
 	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
-	drawNametable(bank, &ppuRAM[0x2000], 0, 0);
-	drawNametable(bank, &ppuRAM[0x2800], 0, 240);
-	drawNametable(bank, &ppuRAM[0x2000], 256, 0);
-	drawNametable(bank, &ppuRAM[0x2800], 256, 240);
+	drawNametable(bank, 0x2000, 0, 0);
+	drawNametable(bank, 0x2800, 0, 240);
+	drawNametable(bank, 0x2000, 256, 0);
+	drawNametable(bank, 0x2800, 256, 240);
 	uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
 	uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
 	SDL_Rect srcRect = {
@@ -160,10 +245,11 @@ void render(void) {
 		}
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
-		drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2]);
+		uint8_t paletteIndex = 0x10 | ((ppu.oam[i*4 + 2]&0x3) << 2);
+		drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2], paletteIndex);
 		if(ppu.control & 0x20) {
 			bitplaneStart += 16;
-			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+8, ppu.oam[i*4 + 2]);
+			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+8, ppu.oam[i*4 + 2], paletteIndex);
 		}
 	}
 	SDL_BlitScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT});
