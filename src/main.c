@@ -2,9 +2,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "rom.h"
+#include "files.h"
 #include "ram.h"
-#include "cart.h"
+#include "rom.h"
 #include "cpu.h"
 #include "ppu.h"
 #include "input.h"
