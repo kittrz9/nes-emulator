@@ -3,4 +3,3 @@
  - fully implement nametable mirroring
  - implement the rest of the opcodes
  - dynarec
- - compile static executable
