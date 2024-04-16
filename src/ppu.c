@@ -87,6 +87,14 @@ uint8_t paletteColors[] = {
 	0x00, 0x00, 0x00,
 };
 
+uint32_t getPaletteColor(uint8_t index) {
+	return \
+		/* R */ paletteColors[(index*3)+0] << 24 |
+		/* G */ paletteColors[(index*3)+1] << 16 |
+		/* B */ paletteColors[(index*3)+2] << 8 |
+		/* A */ 0xFF;
+}
+
 uint8_t initRenderer(void) {
 	if(SDL_Init(SDL_INIT_VIDEO) < 0) {
 		printf("could not init SDL\n");
@@ -136,30 +144,13 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 	uint8_t* bitplane1 = bitplaneStart;
 	uint8_t* bitplane2 = bitplane1 + 8;
 	for(uint8_t j = 0; j < 8; ++j) {
-		/*if(attribs & FLIP_HORIZONTAL) {
-			for(uint8_t k = 0; k < 8; ++k) {
-				uint8_t combined = ((*bitplane1 >> k) & 1) | ((*bitplane2 >> k & 1) << 1);
-				*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up palette stuff
-				++target;
-			}
-		} else {
-			for(uint8_t k = 7; k < 8; --k) {
-				uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
-				*target = 0xFFFFFF00 | (0xFF * (combined != 0)); // just doing this until I set up palette stuff
-				++target;
-			}
-		}*/
 		uint8_t k = (attribs & FLIP_HORIZONTAL ? 0 : 7);
 		while(k < 8) {
 			uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
 			uint8_t newIndex = paletteIndex | combined;
 			uint8_t* palette = &ppuRAM[0x3F00];
 			uint8_t* paletteColor = &paletteColors[palette[newIndex]*3];
-			*target = \
-				/* R */ paletteColor[0] << 24 |
-				/* G */ paletteColor[1] << 16 |
-				/* B */ paletteColor[2] << 8 |
-				/* A */ (combined == 0 ? 0 : 0xFF);
+			*target = getPaletteColor(palette[newIndex]) & (combined == 0 ? 0xFFFFFF00 : 0xFFFFFFFF);
 			++target;
 			k += (attribs & FLIP_HORIZONTAL ? 1 : -1);
 		}
@@ -198,9 +189,7 @@ void drawNametable(uint8_t* bank, uint16_t tableAddr, uint16_t x, uint16_t y) {
 }
 
 void render(void) {
-	SDL_FillRect(windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT}, 0xFF000000);
-	SDL_FillRect(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, 0xFF000000);
-	SDL_FillRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, 0xFF000000);
+	SDL_FillRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, getPaletteColor(ppuRAM[0x3F00]));
 	// draw nametable
 	// only dealing with the horizontal mirroring for now
 	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
