@@ -1,4 +1,5 @@
- - draw the nametable using the palette
+ - fix tetris using the wrong tiles
+ - implement sprite 0 hit somehow
  - fully implement nametable mirroring
  - implement the rest of the opcodes
  - dynarec

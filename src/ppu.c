@@ -152,18 +152,14 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 		uint8_t k = (attribs & FLIP_HORIZONTAL ? 0 : 7);
 		while(k < 8) {
 			uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
-			if(paletteIndex > 0x1F) {
-				*target = 0xFFFFFF00 | (0xFF * (combined != 0));
-			} else {
-				uint8_t newIndex = paletteIndex | combined;
-				uint8_t* palette = &ppuRAM[0x3F00];
-				uint8_t* paletteColor = &paletteColors[palette[newIndex]*3];
-				*target = \
-					/* R */ paletteColor[0] << 24 |
-					/* G */ paletteColor[1] << 16 |
-					/* B */ paletteColor[2] << 8 |
-					/* A */ (combined == 0 ? 0 : 0xFF);
-			}
+			uint8_t newIndex = paletteIndex | combined;
+			uint8_t* palette = &ppuRAM[0x3F00];
+			uint8_t* paletteColor = &paletteColors[palette[newIndex]*3];
+			*target = \
+				/* R */ paletteColor[0] << 24 |
+				/* G */ paletteColor[1] << 16 |
+				/* B */ paletteColor[2] << 8 |
+				/* A */ (combined == 0 ? 0 : 0xFF);
 			++target;
 			k += (attribs & FLIP_HORIZONTAL ? 1 : -1);
 		}
@@ -179,14 +175,25 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 
 void drawNametable(uint8_t* bank, uint16_t tableAddr, uint16_t x, uint16_t y) {
 	uint8_t* table = &ppuRAM[tableAddr];
-	uint8_t* attribTable = table + 960;
+	uint8_t* attribTable = table + 0x3C0;
 	for(uint16_t i = 0; i < 960; ++i) {
 		uint8_t tileID = *(table+i);
+		uint8_t tileX = i%32;
+		uint8_t tileY = i/32;
+		uint8_t attribX = tileX/4;
+		uint8_t attribY = tileY/4;
+		uint8_t attribIndex = (attribY * 8) + attribX;
 
 		uint8_t* bitplaneStart = bank + tileID*8*2;
 		uint16_t xPos = ((i%32)*8 + x) % 512;
 		uint16_t yPos = ((i/32)*8 + y) % 480;
-		drawTile(nameTable, bitplaneStart, xPos, yPos, 0, 0x20);
+		uint8_t shift = (tileX/2) % 2;
+		if((tileY/2)% 2 == 1) {
+			shift += 2;
+		}
+		shift *= 2;
+		uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;
+		drawTile(nameTable, bitplaneStart, xPos, yPos, 0, paletteIndex);
 	}
 }
 
