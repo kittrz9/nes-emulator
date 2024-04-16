@@ -194,9 +194,9 @@ void render(void) {
 	// only dealing with the horizontal mirroring for now
 	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
 	drawNametable(bank, 0x2000, 0, 0);
+	drawNametable(bank, 0x2400, 256, 0);
 	drawNametable(bank, 0x2800, 0, 240);
-	drawNametable(bank, 0x2000, 256, 0);
-	drawNametable(bank, 0x2800, 256, 240);
+	drawNametable(bank, 0x2C00, 256, 240);
 	uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
 	uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
 	SDL_Rect srcRect = {

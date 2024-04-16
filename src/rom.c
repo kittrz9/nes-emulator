@@ -71,6 +71,9 @@ uint8_t loadROM(const char* path) {
 	memcpy(prgROM, prgLocation, prgSize);
 	memcpy(chrROM, chrLocation, chrSize);
 
+	ppu.mirror = header->flags6 & 0x1;
+	printf("mirror: %02X", ppu.mirror);
+
 	free(fileBuffer);
 
 	/*f = fopen("test.prg", "wb");
@@ -96,12 +99,6 @@ uint8_t loadROM(const char* path) {
 
 	memcpy(ppuRAM, chrROM, 0x4000);
 
-	/*for(uint32_t i = 0; i < 0x10000; ++i) {
-		if(i % 0x10 == 0) {
-			printf("\n%04X ", i);
-		}
-		printf("%02X", cpuRAM[i]);
-	}*/
 	printf("\n\n");
 
 	return 0;

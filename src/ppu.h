@@ -9,6 +9,9 @@
 #define SCREEN_WIDTH FB_WIDTH*2
 #define SCREEN_HEIGHT FB_HEIGHT*2
 
+#define MIRROR_VERTICAL 0
+#define MIRROR_HORIZONTAL 1
+
 //https://www.nesdev.org/wiki/PPU_registers
 typedef struct {
 	uint8_t control;
@@ -21,6 +24,7 @@ typedef struct {
 	uint8_t t;
 	uint8_t x;
 	uint8_t w;
+	uint8_t mirror;
 	uint8_t oam[256];
 } ppu_t;
 

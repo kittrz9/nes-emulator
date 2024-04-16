@@ -48,6 +48,15 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 				printf("writing %02X into ppu %04X\n", byte, ppu.vramAddr);
 			#endif
 			ppuRAM[ppu.vramAddr % 0x4000] = byte;
+			if(ppu.vramAddr >= 0x2000 && ppu.vramAddr <= 0x2C00) {
+				uint16_t newAddr = ppu.vramAddr;
+				if(ppu.mirror == MIRROR_HORIZONTAL) {
+					newAddr ^= 0x800;
+				} else {
+					newAddr ^= 0x400;
+				}
+				ppuRAM[newAddr % 0x4000] = byte;
+			}
 			ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
 			break;
 		case 0x4014:
