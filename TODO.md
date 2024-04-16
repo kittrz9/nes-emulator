@@ -1,5 +1,5 @@
- - fix tetris using the wrong tiles
  - implement sprite 0 hit somehow
+ - implement other mappers
  - fully implement nametable mirroring
  - implement the rest of the opcodes
  - dynarec

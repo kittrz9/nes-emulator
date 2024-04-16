@@ -47,7 +47,7 @@ uint8_t loadROM(const char* path) {
 
 	printf("PRG ROM size: %uk\n", header->prgSize*16);
 	printf("CHR ROM size: %uk\n", header->chrSize*8);
-	uint8_t mapperID = (header->flags7 & 0xF) &(header->flags6 & 0xF >> 4);
+	uint8_t mapperID = ((header->flags6 & 0xF0) >> 4) | ((header->flags7 & 0xF0) << 4);
 	printf("mapper ID: %02X\n", mapperID);
 
 	if(mapperID != 0) {
