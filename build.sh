@@ -6,9 +6,9 @@ set -xe
 [ $NAME ] || NAME="nesEmu"
 CFLAGS="$CFLAGS -O2 -Wall -Wextra -Wpedantic -std=gnu99"
 # I'm probably not using rpath correctly lmao
-LDFLAGS="$LDFLAGS -Wall -Wextra -Wpedantic -Wl,-rpath $(pwd)/build/ -L$(pwd)/build/"
+LDFLAGS="$LDFLAGS -Wall -Wextra -Wpedantic"
 DEFINES="$DEFINES"
-LIBS="-lSDL2"
+LIBS="-Wl,-rpath=./ -L./build/ -lSDL2 "
 
 CFILES="$(find src/ -name "*.c")"
 OBJS=""
@@ -33,6 +33,7 @@ rm -rf build/ obj/
 
 mkdir build/ obj/
 
+# idk why I specifically need this file instead of just libSDL2.so
 cp SDL2-$SDL_VERSION/build/.libs/libSDL2-2.0.so.0 build/
 
 for f in $CFILES; do
