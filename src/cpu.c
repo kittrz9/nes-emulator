@@ -24,7 +24,7 @@ cpu_t cpu;
 
 void cpuDumpState(void) {
 	printf("pc: %04X\n", cpu.pc);
-	printf("opcode: %02X\n", cpuRAM[cpu.pc]);
+	printf("opcode: %02X\n", ramReadByte(cpu.pc));
 	printf("cycles: %u\n", cpu.cycles);
 	printf("a: %02X, x: %02X, y: %02X\n", cpu.a, cpu.x, cpu.y);
 	printf("p: %02X\n", cpu.p);
@@ -58,7 +58,7 @@ uint8_t pop(void) {
 void branch(uint8_t cond) {
 	if(cond) {
 		uint8_t oldPage = cpu.pc >> 8;
-		cpu.pc += (int8_t)cpuRAM[cpu.pc+1];
+		cpu.pc += (int8_t)IMM;
 		if(cpu.pc>>8 != oldPage) { cpu.cycles += 1; }
 		cpu.cycles += 1;
 	}
@@ -185,7 +185,7 @@ void transfer(uint8_t* reg, uint8_t byte) {
 }
 
 uint8_t cpuStep(void) {
-	uint8_t opcode = cpuRAM[cpu.pc];
+	uint8_t opcode = ramReadByte(cpu.pc);
 
 	#ifdef DEBUG
 		cpuDumpState();

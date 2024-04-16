@@ -16,9 +16,8 @@ uint8_t loadROM(const char* path) {
 		return 1;
 	}
 
-	size_t fileSize;
 	fseek(f, 0, SEEK_END);
-	fileSize = ftell(f);
+	size_t fileSize = ftell(f);
 	printf("%lu\n", fileSize);
 	fseek(f, 0, SEEK_SET);
 
@@ -50,10 +49,7 @@ uint8_t loadROM(const char* path) {
 	uint8_t mapperID = ((header->flags6 & 0xF0) >> 4) | ((header->flags7 & 0xF0) << 4);
 	printf("mapper ID: %02X\n", mapperID);
 
-	if(mapperID != 0) {
-		printf("mappers besides NROM are unsupported\n");
-		return 1;
-	}
+	setMapper(mapperID);
 
 	uint8_t* prgLocation = fileBuffer+sizeof(iNESHeader);
 	if(header->flags6 & 0x04) {
@@ -62,8 +58,8 @@ uint8_t loadROM(const char* path) {
 	}
 	uint8_t* chrLocation = prgLocation + 0x4000*header->prgSize;
 
-	size_t prgSize = header->prgSize * 0x4000;
-	size_t chrSize = header->chrSize * 0x2000;
+	prgSize = header->prgSize * 0x4000;
+	chrSize = header->chrSize * 0x2000;
 
 	prgROM = malloc(prgSize);
 	chrROM = malloc(chrSize);
@@ -90,12 +86,12 @@ uint8_t loadROM(const char* path) {
 	fwrite(chrROM, chrSize, 1, f);
 	fclose(f);*/
 
-	if(prgSize > 0x4000) {
+	/*if(prgSize > 0x4000) {
 		memcpy(cpuRAM+0x8000, prgROM, 0x8000);
 	} else {
 		memcpy(cpuRAM+0x8000, prgROM, 0x4000);
 		memcpy(cpuRAM+0xC000, prgROM, 0x4000);
-	}
+	}*/
 
 	memcpy(ppuRAM, chrROM, 0x4000);
 

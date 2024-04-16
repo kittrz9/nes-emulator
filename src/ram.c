@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "rom.h"
 #include "ppu.h"
 #include "input.h"
 
@@ -104,7 +105,11 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			#ifdef DEBUG
 				printf("writing byte %02X to %04X\n", byte, addr);
 			#endif
-			cpuRAM[addr] = byte;
+			if(addr >= 0x8000) {
+				romWriteByte(addr, byte);
+			} else {
+				cpuRAM[addr] = byte;
+			}
 	}
 }
 uint8_t ramReadByte(uint16_t addr) {
@@ -155,7 +160,11 @@ uint8_t ramReadByte(uint16_t addr) {
 			#ifdef DEBUG
 				printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
 			#endif
-			return cpuRAM[addr];
+			if(addr >= 0x8000) {
+				return romReadByte(addr);
+			} else {
+				return cpuRAM[addr];
+			}
 	}
 	return 0;
 }
