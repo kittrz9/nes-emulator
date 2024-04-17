@@ -15,12 +15,14 @@ cpu_t cpu;
 #define ZP_INDEX(v) ramReadByte((ARG8 + v) & 0xFF)
 #define ABS_INDEX(v) ramReadByte(ARG16 + v)
 #define INDIR_INDEX_Y ramReadByte(ADDR16(ARG8)+cpu.y)
+#define INDEX_INDIR_X ramReadByte(ADDR16(ARG8+cpu.x))
 
 #define ZP_ADDR ARG8
 #define ABS_ADDR ARG16
 #define ZP_INDEX_ADDR(v) ((ARG8 + v) & 0xFF)
 #define ABS_INDEX_ADDR(v) (ARG16 + v)
 #define INDIR_INDEX_Y_ADDR (ADDR16(ARG8)+cpu.y)
+#define INDEX_INDIR_X_ADDR (ADDR16(ARG8+cpu.x))
 
 void cpuDumpState(void) {
 	printf("pc: %04X\n", cpu.pc);
@@ -194,6 +196,12 @@ uint8_t cpuStep(void) {
 	// https://www.masswerk.at/6502/6502_instruction_set.html
 	// https://www.nesdev.org/obelisk-6502-guide/reference.html
 	switch(opcode) {
+		// ORA (ind, X)
+		case 0x01:
+			ora(INDEX_INDIR_X);
+			cpu.pc += 2;
+			cpu.cycles += 6;
+			break;
 		// ORA zp
 		case 0x05:
 			ora(ZP);
@@ -242,17 +250,47 @@ uint8_t cpuStep(void) {
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
+		// LDA (ind), Y
+		case 0x11:
+			load(&cpu.a, INDIR_INDEX_Y);
+			cpu.pc += 2;
+			cpu.cycles += 5;
+			break;
+		// LDA zp, X
+		case 0x15:
+			load(&cpu.a, ZP_INDEX(cpu.x));
+			cpu.pc += 2;
+			cpu.cycles += 4;
+			break;
+		// ASL zp, X
+		case 0x16:
+			ramWriteByte(ZP_INDEX_ADDR(cpu.x), asl(ZP_INDEX(cpu.x)));
+			cpu.pc += 2;
+			cpu.cycles += 5;
+			break;
 		// CLC
 		case 0x18:
 			cpu.p &= ~(C_FLAG);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
+		// ORA abs, Y
+		case 0x19:
+			ora(ABS_INDEX(cpu.y));
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
 		// ORA abs, X
 		case 0x1D:
 			ora(ABS_INDEX(cpu.x));
 			cpu.pc += 3;
 			cpu.cycles += 4;
+			break;
+		// ASL abs, X
+		case 0x1E:
+			ramWriteByte(ABS_INDEX_ADDR(cpu.x), asl(ABS_INDEX(cpu.x)));
+			cpu.pc += 3;
+			cpu.cycles += 7;
 			break;
 		// JSR
 		case 0x20:
@@ -261,6 +299,12 @@ uint8_t cpuStep(void) {
 			push(cpu.pc & 0xFF);
 			cpu.pc -= 2;
 			cpu.pc = ADDR16(cpu.pc+1);
+			cpu.cycles += 6;
+			break;
+		// AND (ind, X)
+		case 0x21:
+			and_a(INDEX_INDIR_X);
+			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
 		// BIT zp
@@ -323,11 +367,23 @@ uint8_t cpuStep(void) {
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
+		// AND (ind), Y
+		case 0x31:
+			and_a(INDIR_INDEX_Y);
+			cpu.pc += 2;
+			cpu.cycles += 5;
+			break;
 		// AND zp, X
 		case 0x35:
 			and_a(ZP_INDEX(cpu.x));
 			cpu.pc += 2;
 			cpu.cycles += 4;
+			break;
+		// ROL zp, X
+		case 0x36:
+			ramWriteByte(ZP_INDEX_ADDR(cpu.x), rol(ZP_INDEX(cpu.x)));
+			cpu.pc += 2;
+			cpu.cycles += 6;
 			break;
 		// SEC
 		case 0x38:
@@ -335,17 +391,35 @@ uint8_t cpuStep(void) {
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
+		// AND abs, Y
+		case 0x39:
+			and_a(ABS_INDEX(cpu.y));
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
 		// AND abs, X
 		case 0x3D:
 			and_a(ABS_INDEX(cpu.x));
 			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
+		// ROL abs, X
+		case 0x3E:
+			ramWriteByte(ABS_INDEX_ADDR(cpu.x), rol(ABS_INDEX(cpu.x)));
+			cpu.pc += 3;
+			cpu.cycles += 7;
+			break;
 		// RTI
 		case 0x40:
 			cpu.p = pop();
 			cpu.pc = pop() << 8;
 			cpu.pc |= pop();
+			cpu.cycles += 6;
+			break;
+		// EOR (ind, X)
+		case 0x41:
+			eor(INDEX_INDIR_X);
+			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
 		// EOR zp
@@ -395,10 +469,28 @@ uint8_t cpuStep(void) {
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
+		// EOR (ind), Y
+		case 0x51:
+			eor(INDIR_INDEX_Y);
+			cpu.pc += 2;
+			cpu.cycles += 5;
+			break;
 		// EOR zp, X
 		case 0x55:
 			eor(ZP_INDEX(cpu.x));
 			cpu.pc += 2;
+			cpu.cycles += 4;
+			break;
+		// LSR zp, X
+		case 0x56:
+			ramWriteByte(ZP_INDEX_ADDR(cpu.x), lsr(ZP_INDEX(cpu.x)));
+			cpu.pc += 2;
+			cpu.cycles += 6;
+			break;
+		// EOR abs, Y
+		case 0x59:
+			eor(ABS_INDEX(cpu.y));
+			cpu.pc += 3;
 			cpu.cycles += 4;
 			break;
 		// CLI
@@ -407,11 +499,29 @@ uint8_t cpuStep(void) {
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
+		// EOR abs, X
+		case 0x5D:
+			eor(ABS_INDEX(cpu.x));
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
+		// LSR abs, X
+		case 0x5E:
+			ramWriteByte(ABS_INDEX_ADDR(cpu.x), lsr(ABS_INDEX(cpu.x)));
+			cpu.pc += 3;
+			cpu.cycles += 7;
+			break;
 		// RTS
 		case 0x60:
 			cpu.pc = pop();
 			cpu.pc |= pop()<<8;
 			++cpu.pc;
+			cpu.cycles += 6;
+			break;
+		// ADC (ind, X)
+		case 0x61:
+			adc(INDEX_INDIR_X);
+			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
 		// ADC zp
@@ -457,6 +567,18 @@ uint8_t cpuStep(void) {
 			cpu.pc += 3;
 			cpu.cycles += 3;
 			break;
+		// ROR abs
+		case 0x6E:
+			ramWriteByte(ABS_ADDR, ror(ABS));
+			cpu.pc += 2;
+			cpu.cycles += 6;
+			break;
+		// BVS
+		case 0x70:
+			branch((cpu.p & V_FLAG) != 0);
+			cpu.pc += 2;
+			cpu.cycles += 2;
+			break;
 		// ADC (ind), Y
 		case 0x71:
 			adc(INDIR_INDEX_Y);
@@ -498,6 +620,12 @@ uint8_t cpuStep(void) {
 			ramWriteByte(ABS_INDEX_ADDR(cpu.x), ror(ABS_INDEX(cpu.x)));
 			cpu.pc += 3;
 			cpu.cycles += 7;
+			break;
+		// STA (ind, X)
+		case 0x81:
+			cpu.a = ramReadByte(INDEX_INDIR_X_ADDR);
+			cpu.pc += 2;
+			cpu.cycles += 6;
 			break;
 		// STY zp
 		case 0x84:
@@ -571,6 +699,12 @@ uint8_t cpuStep(void) {
 			cpu.pc += 2;
 			cpu.cycles += 4;
 			break;
+		// STX zp, Y
+		case 0x96:
+			ramWriteByte(ZP_INDEX_ADDR(cpu.y), cpu.x);
+			cpu.pc += 2;
+			cpu.cycles += 4;
+			break;
 		// TYA
 		case 0x98:
 			transfer(&cpu.a, cpu.y);
@@ -600,6 +734,12 @@ uint8_t cpuStep(void) {
 			load(&cpu.y, IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
+			break;
+		// LDA (ind, X)
+		case 0xA1:
+			load(&cpu.a, INDEX_INDIR_X);
+			cpu.pc += 2;
+			cpu.cycles += 6;
 			break;
 		// LDX imm
 		case 0xA2:
@@ -685,6 +825,18 @@ uint8_t cpuStep(void) {
 			cpu.pc += 2;
 			cpu.cycles += 4;
 			break;
+		// LDX zp, Y
+		case 0xB6:
+			cpu.x = ramReadByte(ZP_INDEX(cpu.y));
+			cpu.pc += 2;
+			cpu.cycles += 4;
+			break;
+		// CLV
+		case 0xB8:
+			cpu.p &= ~(V_FLAG);
+			cpu.pc += 1;
+			cpu.cycles += 2;
+			break;
 		// LDA abs, Y
 		case 0xB9:
 			load(&cpu.a, ABS_INDEX(cpu.y));
@@ -720,6 +872,12 @@ uint8_t cpuStep(void) {
 			cmp(cpu.y, IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
+			break;
+		// CMP (ind, X)
+		case 0xC1:
+			cmp(cpu.a, INDEX_INDIR_X);
+			cpu.pc += 2;
+			cpu.cycles += 6;
 			break;
 		// CPY zp
 		case 0xC4:
@@ -760,6 +918,12 @@ uint8_t cpuStep(void) {
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
+		// CPY abs
+		case 0xCC:
+			cmp(cpu.y, ABS);
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
 		// CMP abs
 		case 0xCD:
 			cmp(cpu.a, ABS);
@@ -790,6 +954,12 @@ uint8_t cpuStep(void) {
 			cmp(cpu.a, ZP_INDEX(cpu.x));
 			cpu.pc += 2;
 			cpu.cycles += 5;
+			break;
+		// DEC zp, X
+		case 0xD6:
+			ramWriteByte(ZP_INDEX_ADDR(cpu.x), dec(ZP_INDEX(cpu.x)));
+			cpu.pc += 2;
+			cpu.cycles += 7;
 			break;
 		// CLD
 		case 0xD8:
@@ -822,6 +992,12 @@ uint8_t cpuStep(void) {
 			cpu.pc += 2;
 			cpu.cycles += 3;
 			
+			break;
+		// SBC (ind, X)
+		case 0xE1:
+			sbc(INDEX_INDIR_X);
+			cpu.pc += 2;
+			cpu.cycles += 5;
 			break;
 		// CPX zp
 		case 0xE4:
@@ -859,6 +1035,12 @@ uint8_t cpuStep(void) {
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
+		// CPX abs
+		case 0xEC:
+			cmp(cpu.x, ABS);
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
 		// SBC abs
 		case 0xED:
 			sbc(ABS);
@@ -877,6 +1059,12 @@ uint8_t cpuStep(void) {
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
+		// SBC (ind), Y
+		case 0xF1:
+			sbc(INDIR_INDEX_Y);
+			cpu.pc += 2;
+			cpu.cycles += 5;
+			break;
 		// SBC zp, X
 		case 0xF5:
 			sbc(ZP_INDEX(cpu.x));
@@ -888,6 +1076,12 @@ uint8_t cpuStep(void) {
 			ramWriteByte(ZP_INDEX_ADDR(cpu.x), ZP_INDEX(cpu.x));
 			cpu.pc += 2;
 			cpu.cycles += 6;
+			break;
+		// SED
+		case 0xF8:
+			cpu.p |= D_FLAG;
+			cpu.pc += 1;
+			cpu.cycles += 2;
 			break;
 		// SBC abs, Y
 		case 0xF9:
