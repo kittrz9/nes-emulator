@@ -35,13 +35,12 @@ uint8_t loadROM(const char* path) {
 	}
 
 	if((header->flags7 & 0x0C) == 0x08) {
-		printf("NES 2.0 rom, unsupported\n");
-		return 1;
+		printf("NES 2.0 rom\n");
+
 	}
 
 	if(header->flags6 & 0x02) {
 		printf("battery backed PRG RAM, unsupported\n");
-		return 1;
 	}
 
 	printf("PRG ROM size: %uk\n", header->prgSize*16);
