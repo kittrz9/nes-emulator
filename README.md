@@ -7,6 +7,7 @@ it's also only been tested with a few games. galaga and tetris work fine but sup
 <br>
 the framerate is also uncapped lmao<br>
 <hr>
+
 ## building
 to build it all you should need to do is run `./build.sh` in this directory. it will download a version of SDL2 and compile that and then compile the emulator with it.<br>
 <br>
