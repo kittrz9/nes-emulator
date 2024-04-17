@@ -4,7 +4,7 @@ set -xe
 
 [ $CC ] || CC=gcc
 [ $NAME ] || NAME="nesEmu"
-CFLAGS="$CFLAGS -O2 -Wall -Wextra -Wpedantic -std=gnu99"
+CFLAGS="$CFLAGS -O2 -Wall -Wextra -Wpedantic -std=c99"
 # I'm probably not using rpath correctly lmao
 LDFLAGS="$LDFLAGS -Wall -Wextra -Wpedantic"
 DEFINES="$DEFINES"

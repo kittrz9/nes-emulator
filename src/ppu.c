@@ -149,7 +149,6 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 			uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
 			uint8_t newIndex = paletteIndex | combined;
 			uint8_t* palette = &ppuRAM[0x3F00];
-			uint8_t* paletteColor = &paletteColors[palette[newIndex]*3];
 			*target = getPaletteColor(palette[newIndex]) & (combined == 0 ? 0xFFFFFF00 : 0xFFFFFFFF);
 			++target;
 			k += (attribs & FLIP_HORIZONTAL ? 1 : -1);
