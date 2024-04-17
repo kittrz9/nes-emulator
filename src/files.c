@@ -45,7 +45,7 @@ uint8_t loadROM(const char* path) {
 
 	printf("PRG ROM size: %uk\n", header->prgSize*16);
 	printf("CHR ROM size: %uk\n", header->chrSize*8);
-	uint8_t mapperID = ((header->flags6 & 0xF0) >> 4) | ((header->flags7 & 0xF0) << 4);
+	uint8_t mapperID = ((header->flags6 & 0xF0) >> 4) | ((header->flags7 & 0xF0));
 	printf("mapper ID: %02X\n", mapperID);
 
 	setMapper(mapperID);
@@ -70,27 +70,6 @@ uint8_t loadROM(const char* path) {
 	printf("mirror: %02X", ppu.mirror);
 
 	free(fileBuffer);
-
-	/*f = fopen("test.prg", "wb");
-	if(!f) {
-		return 1;
-	}
-	fwrite(prgROM, prgSize, 1, f);
-	fclose(f);
-
-	f = fopen("test.chr", "wb");
-	if(!f) {
-		return 1;
-	}
-	fwrite(chrROM, chrSize, 1, f);
-	fclose(f);*/
-
-	/*if(prgSize > 0x4000) {
-		memcpy(cpuRAM+0x8000, prgROM, 0x8000);
-	} else {
-		memcpy(cpuRAM+0x8000, prgROM, 0x4000);
-		memcpy(cpuRAM+0xC000, prgROM, 0x4000);
-	}*/
 
 	memcpy(ppuRAM, chrROM, 0x4000);
 

@@ -101,9 +101,19 @@ uint8_t initRenderer(void) {
 		return 1;
 	}
 
+	tile = SDL_CreateRGBSurface(0, 8, 16, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+	// dealing with any pitch that isn't like uint32_t aligned would be a pain
+	// since I can't just add a single byte to a uint32_t* without breaking strict aliasing
+	// (or at least I don't think I can with the methods I know in a way that isn't dumb or rewrites all of drawTile)
+	// so I'm just not dealing with pitch at all
+	if(tile->pitch != sizeof(uint32_t)*8) {
+		printf("SDL surface pitch is not just 32 bytes, not gonna deal with that for now\n");
+		SDL_FreeSurface(tile);
+		SDL_Quit();
+		return 1;
+	}
 	w = SDL_CreateWindow("nesEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
 	windowSurface = SDL_GetWindowSurface(w);
-	tile = SDL_CreateRGBSurface(0, 8, 16, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 	frameBuffer = SDL_CreateRGBSurface(0, FB_WIDTH, FB_HEIGHT, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 	nameTable = SDL_CreateRGBSurface(0, NAMETABLE_WIDTH, NAMETABLE_HEIGHT, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
 	return 0;
@@ -156,7 +166,6 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 		if(attribs & FLIP_VERTICAL) {
 			target -= 16;
 		}
-		//target += tile->pitch;
 		++bitplane1;
 		++bitplane2;
 	}
@@ -189,13 +198,13 @@ void drawNametable(uint8_t* bank, uint16_t tableAddr, uint16_t x, uint16_t y) {
 
 void render(void) {
 	SDL_FillRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, getPaletteColor(ppuRAM[0x3F00]));
-	// draw nametable
-	// only dealing with the horizontal mirroring for now
+
 	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
 	drawNametable(bank, 0x2000, 0, 0);
 	drawNametable(bank, 0x2400, 256, 0);
 	drawNametable(bank, 0x2800, 0, 240);
 	drawNametable(bank, 0x2C00, 256, 240);
+
 	uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
 	uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
 	SDL_Rect srcRect = {
@@ -211,6 +220,7 @@ void render(void) {
 		.h = FB_HEIGHT,
 	};
 	SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
+
 	if(scrollY + 240 > 480) {
 		srcRect.y -= 480;
 		SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
@@ -219,6 +229,7 @@ void render(void) {
 		srcRect.y -= 512;
 		SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
 	}
+
 	// draw sprites in OAM
 	for(uint8_t i = 0; i < 64; ++i) {
 		#ifdef DEBUG

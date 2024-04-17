@@ -171,7 +171,7 @@ uint8_t inc(uint8_t byte) {
 	return byte;
 }
 
-// using pointers here since I don't have to worry about affect ram
+// using pointers here since I don't have to worry about affecting ram
 void load(uint8_t* reg, uint8_t byte) {
 	*reg = byte;
 	set_flag(Z_FLAG, *reg == 0);

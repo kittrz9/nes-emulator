@@ -100,7 +100,6 @@ uint8_t mmc1Read(uint16_t addr) {
 }
 
 void setMapper(uint16_t id) {
-	// could probably put all this into a look up table
 	switch(id) {
 		case 0x00:
 			romReadByte = nromRead;

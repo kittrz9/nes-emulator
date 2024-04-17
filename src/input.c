@@ -22,7 +22,6 @@ uint8_t pollController(uint8_t port) {
 	if(c->currentBit == 0) { c->currentBit = 0x80; }
 	uint8_t ret = (c->buttons & c->currentBit) != 0;
 	c->currentBit >>= 1;
-	//printf("controller polled: %02X\n", ret);
 	return ret;
 }
 

@@ -32,7 +32,6 @@ int main(int argc, char** argv) {
 
 	while(1) {
 		if(handleInput() != 0) { break; }
-		//controllers[0].buttons |= 1;
 
 		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
 			cpuStep();
@@ -53,7 +52,6 @@ int main(int argc, char** argv) {
 		while(cpu.cycles <= CYCLES_PER_VBLANK) {
 			cpuStep();
 		}
-		//printf("vblank over\n");
 		ppu.status &= ~(0x80);
 		cpu.cycles = 0;
 

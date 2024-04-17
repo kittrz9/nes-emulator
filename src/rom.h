@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// storing these outside of RAM in case I want to implement bank switching later on
 extern uint8_t* prgROM;
 extern uint8_t* chrROM;
 extern size_t prgSize;

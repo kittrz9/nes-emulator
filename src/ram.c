@@ -70,7 +70,6 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			break;
 		case 0x4016:
 			controllerLatch = byte & 0x01;
-			//printf("latch set to %02X\n", byte & 0x01);
 			break;
 		case 0x2005:
 			if(!ppu.w) {
@@ -151,10 +150,8 @@ uint8_t ramReadByte(uint16_t addr) {
 			#endif
 			break;
 		case 0x4016:
-			//printf("controller 1: %02X\n", controllers[0].buttons);
 			return pollController(0);
 		case 0x4017:
-			//printf("controller 2: %02X\n", controllers[1].buttons);
 			return pollController(1);;
 		default:
 			#ifdef DEBUG
