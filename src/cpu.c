@@ -266,7 +266,7 @@ uint8_t cpuStep(void) {
 		case 0x16:
 			ramWriteByte(ZP_INDEX_ADDR(cpu.x), asl(ZP_INDEX(cpu.x)));
 			cpu.pc += 2;
-			cpu.cycles += 5;
+			cpu.cycles += 6;
 			break;
 		// CLC
 		case 0x18:
@@ -317,7 +317,7 @@ uint8_t cpuStep(void) {
 		case 0x25:
 			and_a(ZP);
 			cpu.pc += 2;
-			cpu.cycles += 2;
+			cpu.cycles += 3;
 			break;
 		// ROL zp
 		case 0x26:
@@ -457,6 +457,12 @@ uint8_t cpuStep(void) {
 			cpu.pc = ABS_ADDR;
 			cpu.cycles += 3;
 			break;
+		// EOR abs
+		case 0x4D:
+			eor(ABS);
+			cpu.pc += 3;
+			cpu.cycles += 4;
+			break;
 		// LSR abs
 		case 0x4E:
 			ramWriteByte(ABS_ADDR, lsr(ABS));
@@ -548,7 +554,7 @@ uint8_t cpuStep(void) {
 		case 0x69:
 			adc(IMM);
 			cpu.pc += 2;
-			cpu.cycles += 3;
+			cpu.cycles += 2;
 			break;
 		// ROR A
 		case 0x6A:
@@ -565,12 +571,12 @@ uint8_t cpuStep(void) {
 		case 0x6D:
 			adc(ABS);
 			cpu.pc += 3;
-			cpu.cycles += 3;
+			cpu.cycles += 4;
 			break;
 		// ROR abs
 		case 0x6E:
 			ramWriteByte(ABS_ADDR, ror(ABS));
-			cpu.pc += 2;
+			cpu.pc += 3;
 			cpu.cycles += 6;
 			break;
 		// BVS
@@ -661,19 +667,19 @@ uint8_t cpuStep(void) {
 		case 0x8C:
 			ramWriteByte(ABS_ADDR, cpu.y);
 			cpu.pc += 3;
-			cpu.cycles += 3;
+			cpu.cycles += 4;
 			break;
 		// STA abs
 		case 0x8D:
 			ramWriteByte(ABS_ADDR, cpu.a);
 			cpu.pc += 3;
-			cpu.cycles += 3;
+			cpu.cycles += 4;
 			break;
 		// STX abs
 		case 0x8E:
 			ramWriteByte(ABS_ADDR, cpu.x);
 			cpu.pc += 3;
-			cpu.cycles += 3;
+			cpu.cycles += 4;
 			break;
 		// BCC
 		case 0x90:
@@ -685,7 +691,7 @@ uint8_t cpuStep(void) {
 		case 0x91:
 			ramWriteByte(INDIR_INDEX_Y_ADDR, cpu.a);
 			cpu.pc += 2;
-			cpu.cycles += 5;
+			cpu.cycles += 6;
 			break;
 		// STY zp, X
 		case 0x94:
@@ -953,13 +959,13 @@ uint8_t cpuStep(void) {
 		case 0xD5:
 			cmp(cpu.a, ZP_INDEX(cpu.x));
 			cpu.pc += 2;
-			cpu.cycles += 5;
+			cpu.cycles += 4;
 			break;
 		// DEC zp, X
 		case 0xD6:
 			ramWriteByte(ZP_INDEX_ADDR(cpu.x), dec(ZP_INDEX(cpu.x)));
 			cpu.pc += 2;
-			cpu.cycles += 7;
+			cpu.cycles += 6;
 			break;
 		// CLD
 		case 0xD8:
@@ -990,14 +996,14 @@ uint8_t cpuStep(void) {
 		case 0xE0:
 			cmp(cpu.x, IMM);
 			cpu.pc += 2;
-			cpu.cycles += 3;
+			cpu.cycles += 2;
 			
 			break;
 		// SBC (ind, X)
 		case 0xE1:
 			sbc(INDEX_INDIR_X);
 			cpu.pc += 2;
-			cpu.cycles += 5;
+			cpu.cycles += 6;
 			break;
 		// CPX zp
 		case 0xE4:
