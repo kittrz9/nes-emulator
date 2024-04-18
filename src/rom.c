@@ -99,6 +99,23 @@ uint8_t mmc1Read(uint16_t addr) {
 	return prgROM[newAddr];
 }
 
+uint8_t unromBank = 0;
+
+void unromWrite(uint16_t addr, uint8_t byte) {
+	(void)addr;
+	unromBank = byte;
+	return;
+}
+
+uint8_t unromRead(uint16_t addr) {
+	addr -= 0x8000;
+	if(addr < 0x4000) {
+		return prgROM[addr + 0x4000 * unromBank];
+	} else {
+		return prgROM[addr + prgSize - 0x8000];
+	}
+}
+
 void setMapper(uint16_t id) {
 	switch(id) {
 		case 0x00:
@@ -109,6 +126,10 @@ void setMapper(uint16_t id) {
 			romReadByte = mmc1Read;
 			romWriteByte = mmc1Write;
 			mmc1.shiftReg = 0x10;
+			break;
+		case 0x02:
+			romReadByte = unromRead;
+			romWriteByte = unromWrite;
 			break;
 		default:
 			printf("unsupported mapper %02X\n", id);
