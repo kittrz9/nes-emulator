@@ -4,13 +4,13 @@ set -xe
 
 SDL_VERSION="2.30.2"
 
-[ $CC ] || CC=gcc
-[ $NAME ] || NAME="nesEmu"
-CFLAGS="$CFLAGS -I./SDL2-$SDL_VERSION/include/ -O2 -Wall -Wextra -Wpedantic -std=c99"
+[ "$CC" ] || CC=gcc
+[ "$NAME" ] || NAME="nesEmu"
+CFLAGS="$CFLAGS -ISDL2-$SDL_VERSION/include/ -O2 -Wall -Wextra -Wpedantic -std=c99"
 LDFLAGS="$LDFLAGS -Wall -Wextra -Wpedantic"
 DEFINES="$DEFINES"
 # I'm probably not using rpath correctly lmao
-LIBS="-Wl,-rpath=./ -L./build/ -lSDL2 "
+LIBS="-Wl,-rpath=./ -Wl,-rpath=build/ -L./build/ -lSDL2 "
 
 CFILES="$(find src/ -name "*.c")"
 OBJS=""
@@ -26,7 +26,7 @@ if ! [ -f "SDL2-$SDL_VERSION/build/.libs/libSDL2-2.0.so.0" ]; then
 	ORIGIN_DIR="$(pwd)"
 	cd "$ORIGIN_DIR/SDL2-$SDL_VERSION"
 	./configure
-	make -j$(nproc)
+	make "-j$(nproc)"
 	cd "$ORIGIN_DIR"
 fi
 
@@ -38,8 +38,8 @@ mkdir build/ obj/
 cp SDL2-$SDL_VERSION/build/.libs/libSDL2-2.0.so.0 build/
 
 for f in $CFILES; do
-	OBJNAME="$(echo $f | sed -e "s/\.c/\.o/" -e "s/src/obj/")"
-	$CC $CFLAGS $DEFINES -c $f -o $OBJNAME &
+	OBJNAME="$(echo "$f" | sed -e "s/\.c/\.o/" -e "s/src/obj/")"
+	$CC $CFLAGS $DEFINES -c "$f" -o "$OBJNAME" &
 	OBJS="$OBJS $OBJNAME"
 done
 
