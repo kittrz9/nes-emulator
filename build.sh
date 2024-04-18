@@ -2,18 +2,19 @@
 
 set -xe
 
+SDL_VERSION="2.30.2"
+
 [ $CC ] || CC=gcc
 [ $NAME ] || NAME="nesEmu"
-CFLAGS="$CFLAGS -O2 -Wall -Wextra -Wpedantic -std=c99"
-# I'm probably not using rpath correctly lmao
+CFLAGS="$CFLAGS -I./SDL2-$SDL_VERSION/include/ -O2 -Wall -Wextra -Wpedantic -std=c99"
 LDFLAGS="$LDFLAGS -Wall -Wextra -Wpedantic"
 DEFINES="$DEFINES"
+# I'm probably not using rpath correctly lmao
 LIBS="-Wl,-rpath=./ -L./build/ -lSDL2 "
 
 CFILES="$(find src/ -name "*.c")"
 OBJS=""
 
-SDL_VERSION="2.30.2"
 if ! [ -d "SDL2-$SDL_VERSION" ]; then
 	if ! [ -f "SDL2-$SDL_VERSION.tar.gz" ]; then
 		wget "https://github.com/libsdl-org/SDL/releases/download/release-$SDL_VERSION/SDL2-$SDL_VERSION.tar.gz"

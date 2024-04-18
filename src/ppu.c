@@ -1,6 +1,7 @@
 #include "ppu.h"
 
-#include <SDL2/SDL.h>
+// not doing <SDL2/SDL.h> here to include the downloaded SDL headers instead
+#include "SDL.h"
 
 ppu_t ppu;
 
