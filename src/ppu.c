@@ -221,12 +221,13 @@ void render(void) {
 	};
 	SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
 
+	// this needs to be changed when I inevitably need to deal with more complex scrolling
 	if(scrollY + 240 > 480) {
 		srcRect.y -= 480;
 		SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
 	}
 	if(scrollX + 256 > 512) {
-		srcRect.y -= 512;
+		srcRect.x -= 512;
 		SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
 	}
 
