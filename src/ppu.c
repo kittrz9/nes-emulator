@@ -271,4 +271,9 @@ void render(void) {
 	}
 	SDL_BlitScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT});
 	SDL_UpdateWindowSurface(w);
+
+	#ifndef UNCAP_FPS
+		// rendering is already fast enough that this should be fine
+		SDL_Delay(1000/60);
+	#endif
 }

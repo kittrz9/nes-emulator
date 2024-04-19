@@ -1,5 +1,6 @@
  - NES 2.0 header support
  - finish implementing mmc1 mapper (stuff like 1 screen mirroring)
  - implement sprite 0 hit somehow
+ - fix micro mages
  - implement other mappers
  - dynarec

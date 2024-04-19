@@ -196,6 +196,13 @@ uint8_t cpuStep(void) {
 	// https://www.masswerk.at/6502/6502_instruction_set.html
 	// https://www.nesdev.org/obelisk-6502-guide/reference.html
 	switch(opcode) {
+		// BRK
+		case 0x00:
+			push(cpu.pc & 0xFF);
+			push((cpu.pc & 0xFF00) >> 8);
+			push(cpu.p);
+			cpu.pc = ADDR16(IRQ_VECTOR);
+			break;
 		// ORA (ind, X)
 		case 0x01:
 			ora(INDEX_INDIR_X);
