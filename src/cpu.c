@@ -34,7 +34,7 @@ void cpuDumpState(void) {
 	printf("\n");
 }
 
-void set_flag(uint8_t flag, uint8_t value) {
+void setFlag(uint8_t flag, uint8_t value) {
 	if(value) {
 		cpu.p |= flag;
 	} else {
@@ -68,121 +68,121 @@ void branch(uint8_t cond) {
 }
 
 void cmp(uint8_t reg, uint8_t byte) {
-	set_flag(C_FLAG, reg >= byte);
-	set_flag(Z_FLAG, reg == byte);
-	set_flag(N_FLAG, (reg - byte) & 0x80);
+	setFlag(C_FLAG, reg >= byte);
+	setFlag(Z_FLAG, reg == byte);
+	setFlag(N_FLAG, (reg - byte) & 0x80);
 	return;
 }
 
 void bit(uint8_t byte) {
-	set_flag(Z_FLAG, (byte & cpu.a) == 0);
-	set_flag(V_FLAG, byte & V_FLAG);
-	set_flag(N_FLAG, byte & N_FLAG);
+	setFlag(Z_FLAG, (byte & cpu.a) == 0);
+	setFlag(V_FLAG, byte & V_FLAG);
+	setFlag(N_FLAG, byte & N_FLAG);
 	return;
 }
 
 void ora(uint8_t byte) {
 	cpu.a |= byte;
-	set_flag(Z_FLAG, cpu.a == 0);
-	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+	setFlag(Z_FLAG, cpu.a == 0);
+	setFlag(N_FLAG, (cpu.a & 0x80) != 0);
 	return;
 }
 
 void and_a(uint8_t byte) {
 	cpu.a &= byte;
-	set_flag(Z_FLAG, cpu.a == 0);
-	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+	setFlag(Z_FLAG, cpu.a == 0);
+	setFlag(N_FLAG, (cpu.a & 0x80) != 0);
 	return;
 }
 
 void eor(uint8_t byte) {
 	cpu.a = cpu.a ^ byte;
-	set_flag(Z_FLAG, cpu.a == 0);
-	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+	setFlag(Z_FLAG, cpu.a == 0);
+	setFlag(N_FLAG, (cpu.a & 0x80) != 0);
 }
 
 // return result so it can be put into ram or A
 uint8_t asl(uint8_t byte) {
-	set_flag(C_FLAG, byte & 0x80);
+	setFlag(C_FLAG, byte & 0x80);
 	byte <<= 1;
-	set_flag(Z_FLAG, byte == 0);
-	set_flag(N_FLAG, byte & 0x80);
+	setFlag(Z_FLAG, byte == 0);
+	setFlag(N_FLAG, byte & 0x80);
 	return byte;
 }
 
 uint8_t lsr(uint8_t byte) {
-	set_flag(C_FLAG, byte & 0x01);
+	setFlag(C_FLAG, byte & 0x01);
 	byte >>= 1;
-	set_flag(Z_FLAG, byte == 0);
-	set_flag(N_FLAG, byte & 0x80);
+	setFlag(Z_FLAG, byte == 0);
+	setFlag(N_FLAG, byte & 0x80);
 	return byte;
 }
 
 uint8_t ror(uint8_t byte) {
 	uint8_t carry = cpu.p & C_FLAG;
-	set_flag(C_FLAG, byte & 0x01);
+	setFlag(C_FLAG, byte & 0x01);
 	byte >>= 1;
 	byte |= carry << 7;
-	set_flag(Z_FLAG, byte == 0);
-	set_flag(N_FLAG, (byte & 0x80) != 0);
+	setFlag(Z_FLAG, byte == 0);
+	setFlag(N_FLAG, (byte & 0x80) != 0);
 	return byte;
 }
 
 uint8_t rol(uint8_t byte) {
 	uint8_t carry = cpu.p & C_FLAG;
-	set_flag(C_FLAG, byte & 0x80);
+	setFlag(C_FLAG, byte & 0x80);
 	byte <<= 1;
 	byte |= carry;
-	set_flag(Z_FLAG, byte == 0);
-	set_flag(N_FLAG, (byte & 0x80) != 0);
+	setFlag(Z_FLAG, byte == 0);
+	setFlag(N_FLAG, (byte & 0x80) != 0);
 	return byte;
 }
 
 void adc(uint8_t byte) {
 	uint16_t tmp = cpu.a + byte + (cpu.p & C_FLAG);
-	set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
+	setFlag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
 	cpu.a = tmp & 0xFF;
-	set_flag(C_FLAG, tmp > 255);
-	set_flag(Z_FLAG, cpu.a == 0);
-	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+	setFlag(C_FLAG, tmp > 255);
+	setFlag(Z_FLAG, cpu.a == 0);
+	setFlag(N_FLAG, (cpu.a & 0x80) != 0);
 	return;
 }
 
 void sbc(uint8_t byte) {
 	uint16_t tmp = cpu.a - byte - !(cpu.p & C_FLAG);
-	set_flag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
+	setFlag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
 	cpu.a = tmp & 0xFF;
-	set_flag(C_FLAG, tmp < 256);
-	set_flag(Z_FLAG, cpu.a == 0);
-	set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+	setFlag(C_FLAG, tmp < 256);
+	setFlag(Z_FLAG, cpu.a == 0);
+	setFlag(N_FLAG, (cpu.a & 0x80) != 0);
 }
 
 uint8_t dec(uint8_t byte) {
 	--byte;
-	set_flag(Z_FLAG, byte == 0);
-	set_flag(N_FLAG, (byte & 0x80) != 0);
+	setFlag(Z_FLAG, byte == 0);
+	setFlag(N_FLAG, (byte & 0x80) != 0);
 	return byte;
 }
 
 uint8_t inc(uint8_t byte) {
 	++byte;
-	set_flag(Z_FLAG, byte == 0);
-	set_flag(N_FLAG, (byte & 0x80) != 0);
+	setFlag(Z_FLAG, byte == 0);
+	setFlag(N_FLAG, (byte & 0x80) != 0);
 	return byte;
 }
 
 // using pointers here since I don't have to worry about affecting ram
 void load(uint8_t* reg, uint8_t byte) {
 	*reg = byte;
-	set_flag(Z_FLAG, *reg == 0);
-	set_flag(N_FLAG, (*reg & 0x80) != 0);
+	setFlag(Z_FLAG, *reg == 0);
+	setFlag(N_FLAG, (*reg & 0x80) != 0);
 	return;
 }
 
 void transfer(uint8_t* reg, uint8_t byte) {
 	*reg = byte;
-	set_flag(Z_FLAG, *reg == 0);
-	set_flag(N_FLAG, (*reg & 0x80) != 0);
+	setFlag(Z_FLAG, *reg == 0);
+	setFlag(N_FLAG, (*reg & 0x80) != 0);
 	return;
 }
 
@@ -198,10 +198,16 @@ uint8_t cpuStep(void) {
 	switch(opcode) {
 		// BRK
 		case 0x00:
+			cpu.pc += 2;
+			// idk if the interrupt disable flag affects BRK
+			// but micro mages freezes at the start of the level if it doesn't go through if it's set
+			// so I'm assuming it doesn't
 			push(cpu.pc & 0xFF);
 			push((cpu.pc & 0xFF00) >> 8);
-			push(cpu.p);
+			push(cpu.p | B_FLAG);
+			cpu.p |= I_FLAG;
 			cpu.pc = ADDR16(IRQ_VECTOR);
+			cpu.cycles += 7;
 			break;
 		// ORA (ind, X)
 		case 0x01:
@@ -223,7 +229,7 @@ uint8_t cpuStep(void) {
 			break;
 		// PHP
 		case 0x08:
-			push(cpu.p);
+			push(cpu.p | B_FLAG);
 			cpu.pc += 1;
 			cpu.cycles += 3;
 			break;
@@ -508,7 +514,7 @@ uint8_t cpuStep(void) {
 			break;
 		// CLI
 		case 0x58:
-			cpu.p &= ~(C_FLAG);
+			cpu.p &= ~(I_FLAG);
 			cpu.pc += 1;
 			cpu.cycles += 2;
 			break;
@@ -552,8 +558,8 @@ uint8_t cpuStep(void) {
 		// PLA
 		case 0x68:
 			cpu.a = pop();
-			set_flag(Z_FLAG, cpu.a == 0);
-			set_flag(N_FLAG, (cpu.a & 0x80) != 0);
+			setFlag(Z_FLAG, cpu.a == 0);
+			setFlag(N_FLAG, (cpu.a & 0x80) != 0);
 			cpu.pc += 1;
 			cpu.cycles += 4;
 			break;

@@ -12,7 +12,7 @@
 #define Z_FLAG 0x02
 #define I_FLAG 0x04
 #define D_FLAG 0x08
-//#define B_FLAG 0x10
+#define B_FLAG 0x10
 //#define ONE_FLAG 0x20
 #define V_FLAG 0x40
 #define N_FLAG 0x80

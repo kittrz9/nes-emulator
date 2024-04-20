@@ -39,10 +39,10 @@ uint8_t handleInput(void) {
 		SDL_SCANCODE_LEFT,
 		SDL_SCANCODE_DOWN,
 		SDL_SCANCODE_UP,
-		SDL_SCANCODE_RETURN,
-		SDL_SCANCODE_RSHIFT,
-		SDL_SCANCODE_X,
-		SDL_SCANCODE_Z,
+		SDL_SCANCODE_RETURN, // START
+		SDL_SCANCODE_RSHIFT, // SELECT
+		SDL_SCANCODE_X, // B
+		SDL_SCANCODE_Z, // A
 	};
 	for(uint8_t i = 0; i < 8; ++i) {
 		if(keys[inputKeys[i]]) {
