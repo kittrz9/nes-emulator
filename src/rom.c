@@ -47,6 +47,7 @@ void mmc1Write(uint16_t addr, uint8_t byte) {
 		switch((addr >> 13) & 0x3) {
 			case 0:
 				mmc1.control = tmp;
+				ppu.mirror = tmp & 0x3;
 				break;
 			case 1:
 				mmc1.chrBank0 = tmp;
@@ -55,7 +56,7 @@ void mmc1Write(uint16_t addr, uint8_t byte) {
 					// dumb workaround
 					memcpy(ppuRAM, chrROM + (mmc1.chrBank0 << 12), 0x1000);
 				} else {
-					memcpy(ppuRAM, chrROM + ((mmc1.chrBank0 & 0x1E) << 12), 0x2000);
+					memcpy(ppuRAM, chrROM + (mmc1.chrBank0 << 12), 0x2000);
 				}
 				break;
 			case 2:
@@ -83,16 +84,16 @@ uint8_t mmc1Read(uint16_t addr) {
 			break;
 		case 2:
 			// first bank locked
-			if(addr >= 0x4000) {
-				newAddr += mmc1.prgBank << 15;
+			if(newAddr >= 0x4000) {
+				newAddr += mmc1.prgBank << 14;
 			}
 			break;
 		case 3:
 			// last bank locked
-			if(addr < 0x4000) {
-				newAddr += mmc1.prgBank << 15;
+			if(newAddr < 0x4000) {
+				newAddr += mmc1.prgBank << 14;
 			} else {
-				newAddr += prgSize - 0x4000;
+				newAddr += prgSize - 0x8000;
 			}
 			break;
 	}
@@ -126,6 +127,7 @@ void setMapper(uint16_t id) {
 			romReadByte = mmc1Read;
 			romWriteByte = mmc1Write;
 			mmc1.shiftReg = 0x10;
+			mmc1.control = 0x0C;
 			break;
 		case 0x02:
 			romReadByte = unromRead;

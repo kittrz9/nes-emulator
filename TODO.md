@@ -1,4 +1,5 @@
  - NES 2.0 header support
+ - fix scrolling in megaman 2 and metroid
  - finish implementing mmc1 mapper (stuff like 1 screen mirroring)
  - implement sprite 0 hit somehow
  - fix micro mages

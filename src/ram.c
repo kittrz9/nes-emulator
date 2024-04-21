@@ -154,12 +154,15 @@ uint8_t ramReadByte(uint16_t addr) {
 		case 0x4017:
 			return pollController(1);;
 		default:
-			#ifdef DEBUG
-				printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
-			#endif
 			if(addr >= 0x8000) {
+				#ifdef DEBUG
+					printf("read byte %02X from ROM %04X\n", romReadByte(addr), addr);
+				#endif
 				return romReadByte(addr);
 			} else {
+				#ifdef DEBUG
+					printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
+				#endif
 				return cpuRAM[addr];
 			}
 	}
