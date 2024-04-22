@@ -271,7 +271,6 @@ uint8_t cpuStep(void) {
 			break;
 		// ORA zp, X
 		case 0x15:
-			load(&cpu.a, ZP_INDEX(cpu.x));
 			ora(ZP_INDEX(cpu.x));
 			cpu.pc += 2;
 			cpu.cycles += 4;
