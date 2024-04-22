@@ -263,15 +263,16 @@ uint8_t cpuStep(void) {
 			cpu.pc += 2;
 			cpu.cycles += 2;
 			break;
-		// LDA (ind), Y
+		// ORA (ind), Y
 		case 0x11:
-			load(&cpu.a, INDIR_INDEX_Y);
+			ora(INDIR_INDEX_Y);
 			cpu.pc += 2;
 			cpu.cycles += 5;
 			break;
-		// LDA zp, X
+		// ORA zp, X
 		case 0x15:
 			load(&cpu.a, ZP_INDEX(cpu.x));
+			ora(ZP_INDEX(cpu.x));
 			cpu.pc += 2;
 			cpu.cycles += 4;
 			break;
@@ -506,17 +507,17 @@ uint8_t cpuStep(void) {
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
-		// EOR abs, Y
-		case 0x59:
-			eor(ABS_INDEX(cpu.y));
-			cpu.pc += 3;
-			cpu.cycles += 4;
-			break;
 		// CLI
 		case 0x58:
 			cpu.p &= ~(I_FLAG);
 			cpu.pc += 1;
 			cpu.cycles += 2;
+			break;
+		// EOR abs, Y
+		case 0x59:
+			eor(ABS_INDEX(cpu.y));
+			cpu.pc += 3;
+			cpu.cycles += 4;
 			break;
 		// EOR abs, X
 		case 0x5D:
