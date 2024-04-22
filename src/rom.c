@@ -47,7 +47,7 @@ void mmc1Write(uint16_t addr, uint8_t byte) {
 		switch((addr >> 13) & 0x3) {
 			case 0:
 				mmc1.control = tmp;
-				ppu.mirror = tmp & 0x3;
+				ppu.mirror = (tmp>>1) & 0x1;
 				break;
 			case 1:
 				mmc1.chrBank0 = tmp;

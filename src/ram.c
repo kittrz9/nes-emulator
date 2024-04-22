@@ -51,7 +51,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			ppuRAM[ppu.vramAddr % 0x4000] = byte;
 			if(ppu.vramAddr >= 0x2000 && ppu.vramAddr <= 0x2C00) {
 				uint16_t newAddr = ppu.vramAddr;
-				if(ppu.mirror == MIRROR_HORIZONTAL) {
+				if(ppu.mirror & MIRROR_HORIZONTAL) {
 					newAddr ^= 0x800;
 				} else {
 					newAddr ^= 0x400;
