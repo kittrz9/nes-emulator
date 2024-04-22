@@ -49,14 +49,20 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 				printf("writing %02X into ppu %04X\n", byte, ppu.vramAddr);
 			#endif
 			ppuRAM[ppu.vramAddr % 0x4000] = byte;
-			if(ppu.vramAddr >= 0x2000 && ppu.vramAddr <= 0x2C00) {
-				uint16_t newAddr = ppu.vramAddr;
+			if(ppu.vramAddr >= 0x2000 && ppu.vramAddr <= 0x3000) {
 				if(ppu.mirror & MIRROR_HORIZONTAL) {
-					newAddr ^= 0x800;
+					if(ppu.vramAddr & 0x400) {
+						nametableBank2[(ppu.vramAddr - 0x2400) & ~(0x800)] = byte;
+					} else {
+						nametableBank1[(ppu.vramAddr - 0x2000) & ~(0x800)] = byte;
+					}
 				} else {
-					newAddr ^= 0x400;
+					if(ppu.vramAddr & 0x800) {
+						nametableBank2[(ppu.vramAddr - 0x2800) & ~(0x400)] = byte;
+					} else {
+						nametableBank1[(ppu.vramAddr - 0x2000) & ~(0x400)] = byte;
+					}
 				}
-				ppuRAM[newAddr % 0x4000] = byte;
 			}
 			ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
 			break;

@@ -32,6 +32,9 @@ extern ppu_t ppu;
 
 extern uint8_t ppuRAM[0x4000];
 
+extern uint8_t nametableBank1[0x400];
+extern uint8_t nametableBank2[0x400];
+
 uint8_t initRenderer(void);
 void uninitRenderer(void);
 

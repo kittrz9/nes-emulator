@@ -7,6 +7,9 @@ ppu_t ppu;
 
 uint8_t ppuRAM[0x4000];
 
+uint8_t nametableBank1[0x400];
+uint8_t nametableBank2[0x400];
+
 SDL_Window* w;
 SDL_Surface* windowSurface;
 SDL_Surface* tile;
@@ -164,8 +167,7 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 	SDL_BlitSurface(tile, &srcRect, dst, &targetRect);
 }
 
-void drawNametable(uint8_t* bank, uint16_t tableAddr, uint16_t x, uint16_t y) {
-	uint8_t* table = &ppuRAM[tableAddr];
+void drawNametable(uint8_t* chrBank, uint8_t* table, uint16_t x, uint16_t y) {
 	uint8_t* attribTable = table + 0x3C0;
 	for(uint16_t i = 0; i < 960; ++i) {
 		uint8_t tileID = *(table+i);
@@ -175,7 +177,7 @@ void drawNametable(uint8_t* bank, uint16_t tableAddr, uint16_t x, uint16_t y) {
 		uint8_t attribY = tileY/4;
 		uint8_t attribIndex = (attribY * 8) + attribX;
 
-		uint8_t* bitplaneStart = bank + tileID*8*2;
+		uint8_t* bitplaneStart = chrBank + tileID*8*2;
 		uint16_t xPos = ((i%32)*8 + x) % 512;
 		uint16_t yPos = ((i/32)*8 + y) % 480;
 		uint8_t shift = (tileX/2) % 2;
@@ -192,10 +194,17 @@ void render(void) {
 	SDL_FillRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, paletteColors[ppuRAM[0x3F00]]);
 
 	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
-	drawNametable(bank, 0x2000, 0, 0);
-	drawNametable(bank, 0x2400, 256, 0);
-	drawNametable(bank, 0x2800, 0, 240);
-	drawNametable(bank, 0x2C00, 256, 240);
+	if(ppu.mirror & MIRROR_HORIZONTAL) {
+		drawNametable(bank, nametableBank1, 0, 0);
+		drawNametable(bank, nametableBank2, 256, 0);
+		drawNametable(bank, nametableBank1, 0, 240);
+		drawNametable(bank, nametableBank2, 256, 240);
+	} else {
+		drawNametable(bank, nametableBank1, 0, 0);
+		drawNametable(bank, nametableBank1, 256, 0);
+		drawNametable(bank, nametableBank2, 0, 240);
+		drawNametable(bank, nametableBank2, 256, 240);
+	}
 
 	uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
 	uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
