@@ -642,7 +642,7 @@ uint8_t cpuStep(void) {
 			break;
 		// STA (ind, X)
 		case 0x81:
-			cpu.a = ramReadByte(INDEX_INDIR_X_ADDR);
+			cpu.a = INDEX_INDIR_X;
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
@@ -846,7 +846,7 @@ uint8_t cpuStep(void) {
 			break;
 		// LDX zp, Y
 		case 0xB6:
-			cpu.x = ramReadByte(ZP_INDEX(cpu.y));
+			cpu.x = ZP_INDEX(cpu.y);
 			cpu.pc += 2;
 			cpu.cycles += 4;
 			break;
@@ -903,7 +903,6 @@ uint8_t cpuStep(void) {
 			cmp(cpu.y, ZP);
 			cpu.pc += 2;
 			cpu.cycles += 3;
-			
 			break;
 		// CMP zp
 		case 0xC5:
@@ -916,7 +915,6 @@ uint8_t cpuStep(void) {
 			ramWriteByte(ZP_ADDR, dec(ZP));
 			cpu.pc += 2;
 			cpu.cycles += 5;
-
 			break;
 		// INY
 		case 0xC8:
@@ -929,7 +927,6 @@ uint8_t cpuStep(void) {
 			cmp(cpu.a, IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
-			
 			break;
 		// DEX
 		case 0xCA:
@@ -954,7 +951,6 @@ uint8_t cpuStep(void) {
 			ramWriteByte(ABS_ADDR, dec(ABS));
 			cpu.pc += 3;
 			cpu.cycles += 6;
-
 			break;
 		// BNE
 		case 0xD0:
@@ -1003,14 +999,12 @@ uint8_t cpuStep(void) {
 			ramWriteByte(ABS_INDEX_ADDR(cpu.x), dec(ABS_INDEX(cpu.x)));
 			cpu.pc += 3;
 			cpu.cycles += 7;
-
 			break;
 		// CPX imm
 		case 0xE0:
 			cmp(cpu.x, IMM);
 			cpu.pc += 2;
 			cpu.cycles += 2;
-			
 			break;
 		// SBC (ind, X)
 		case 0xE1:
@@ -1023,7 +1017,6 @@ uint8_t cpuStep(void) {
 			cmp(cpu.x, ZP);
 			cpu.pc += 2;
 			cpu.cycles += 3;
-			
 			break;
 		// SBC zp
 		case 0xE5:

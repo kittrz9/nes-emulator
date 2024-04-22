@@ -1,5 +1,5 @@
  - NES 2.0 header support
- - fix collision issues in megaman 2
+ - fix nametable corruption in megaman 2 (happens in airman's stage)
  - finish implementing mmc1 mapper (stuff like 1 screen mirroring)
  - implement sprite 0 hit somehow
  - fix micro mages
