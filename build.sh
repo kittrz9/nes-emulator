@@ -4,6 +4,12 @@ set -xe
 
 SDL_VERSION="2.30.2"
 
+if [ "$DEBUG" ]; then
+	DEFINES="-DDEBUG"
+	CFLAGS="-g -fsanitize=address"
+	LDFLAGS="-g -fsanitize=address"
+fi
+
 [ "$CC" ] || CC=gcc
 [ "$NAME" ] || NAME="nesEmu"
 CFLAGS="$CFLAGS -ISDL2-$SDL_VERSION/include/ -O2 -Wall -Wextra -Wpedantic -std=c99"

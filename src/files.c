@@ -55,23 +55,25 @@ uint8_t loadROM(const char* path) {
 		printf("trainer in rom\n");
 		prgLocation += 512;
 	}
-	uint8_t* chrLocation = prgLocation + 0x4000*header->prgSize;
 
 	prgSize = header->prgSize * 0x4000;
 	chrSize = header->chrSize * 0x2000;
+	uint8_t* chrLocation = prgLocation + prgSize;
 
 	prgROM = malloc(prgSize);
 	chrROM = malloc(chrSize);
 
 	memcpy(prgROM, prgLocation, prgSize);
-	memcpy(chrROM, chrLocation, chrSize);
+	if(chrSize != 0) {
+		memcpy(chrROM, chrLocation, chrSize);
+		memcpy(ppuRAM, chrROM, 0x2000);
+	}
 
 	ppu.mirror = header->flags6 & 0x1;
 	printf("mirror: %02X", ppu.mirror);
 
 	free(fileBuffer);
 
-	memcpy(ppuRAM, chrROM, 0x4000);
 
 	printf("\n\n");
 
