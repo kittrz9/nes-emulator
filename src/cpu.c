@@ -1085,7 +1085,7 @@ uint8_t cpuStep(void) {
 			break;
 		// INC zp, X
 		case 0xF6:
-			ramWriteByte(ZP_INDEX_ADDR(cpu.x), ZP_INDEX(cpu.x));
+			ramWriteByte(ZP_INDEX_ADDR(cpu.x), inc(ZP_INDEX(cpu.x)));
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
