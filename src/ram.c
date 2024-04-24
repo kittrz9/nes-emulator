@@ -64,6 +64,10 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 					}
 				}
 			}
+			// https://www.nesdev.org/wiki/PPU_palettes#Memory_Map
+			if(ppu.vramAddr >= 0x3F00 && ppu.vramAddr < 0x3F20 && ppu.vramAddr % 4 == 0) {
+				ppuRAM[ppu.vramAddr ^ 0x10] = byte;
+			}
 			ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
 			break;
 		case 0x4014:
