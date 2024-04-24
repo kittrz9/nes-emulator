@@ -2,7 +2,7 @@
  - fix nametable corruption in megaman 2 (happens in airman's stage)
  - figure out CHR RAM stuff (probably related to the megaman 2 bug)
  - finish implementing mmc1 mapper (stuff like 1 screen mirroring)
- - implement sprite 0 hit somehow
+ - fix scrolling in super mario bros
  - fix micro mages
  - implement other mappers
  - dynarec

@@ -12,6 +12,7 @@
 // https://www.nesdev.org/wiki/Cycle_reference_chart
 #define CYCLES_PER_FRAME 29780
 #define CYCLES_PER_VBLANK 2273
+#define CYCLES_PER_SCANLINE 114
 
 int main(int argc, char** argv) {
 	if(argc < 2) {
@@ -33,8 +34,12 @@ int main(int argc, char** argv) {
 	while(1) {
 		if(handleInput() != 0) { break; }
 
+		ppu.status &= ~(0x40);
 		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
 			cpuStep();
+			if(cpu.cycles >= CYCLES_PER_SCANLINE * ppu.oam[0]) {
+				ppu.status |= 0x40;
+			}
 		}
 		#ifdef DEBUG
 			printf("funny vblank\n");
