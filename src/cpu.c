@@ -174,15 +174,15 @@ uint8_t inc(uint8_t byte) {
 // using pointers here since I don't have to worry about affecting ram
 void load(uint8_t* reg, uint8_t byte) {
 	*reg = byte;
-	setFlag(Z_FLAG, *reg == 0);
-	setFlag(N_FLAG, (*reg & 0x80) != 0);
+	setFlag(Z_FLAG, byte == 0);
+	setFlag(N_FLAG, (byte & 0x80) != 0);
 	return;
 }
 
 void transfer(uint8_t* reg, uint8_t byte) {
 	*reg = byte;
-	setFlag(Z_FLAG, *reg == 0);
-	setFlag(N_FLAG, (*reg & 0x80) != 0);
+	setFlag(Z_FLAG, byte == 0);
+	setFlag(N_FLAG, (byte & 0x80) != 0);
 	return;
 }
 
@@ -612,7 +612,7 @@ uint8_t cpuStep(void) {
 			break;
 		// ROR zp, X
 		case 0x76:
-			ramWriteByte(ZP_ADDR, ror(ZP));
+			ramWriteByte(ZP_INDEX_ADDR(cpu.x), ror(ZP_INDEX(cpu.x)));
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
@@ -642,7 +642,7 @@ uint8_t cpuStep(void) {
 			break;
 		// STA (ind, X)
 		case 0x81:
-			cpu.a = INDEX_INDIR_X;
+			ramWriteByte(INDEX_INDIR_X_ADDR, cpu.a);
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
@@ -846,7 +846,7 @@ uint8_t cpuStep(void) {
 			break;
 		// LDX zp, Y
 		case 0xB6:
-			cpu.x = ZP_INDEX(cpu.y);
+			load(&cpu.x, ZP_INDEX(cpu.y));
 			cpu.pc += 2;
 			cpu.cycles += 4;
 			break;
