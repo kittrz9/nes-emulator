@@ -1,10 +1,11 @@
 #include "input.h"
 
-#include <stdio.h>
-
-#include "SDL.h"
+#include "SDL3/SDL.h"
 
 #include "ppu.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 controller_t controllers[2];
 
@@ -26,12 +27,12 @@ uint8_t pollController(uint8_t port) {
 }
 
 void initInput(void) {
-	keys = SDL_GetKeyboardState(&keyNumber); 
+	keys = (const uint8_t*)SDL_GetKeyboardState(&keyNumber); 
 }
 
 uint8_t handleInput(void) {
 	SDL_PollEvent(&e);
-	if(e.type == SDL_QUIT) {
+	if(e.type == SDL_EVENT_QUIT) {
 		return 1;
 	}
 	const SDL_Keycode inputKeys[] = {

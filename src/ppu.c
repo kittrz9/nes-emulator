@@ -1,7 +1,9 @@
 #include "ppu.h"
 
 // not doing <SDL2/SDL.h> here to include the downloaded SDL headers instead
-#include "SDL.h"
+#include "SDL3/SDL.h"
+
+#include <stdio.h>
 
 ppu_t ppu;
 
@@ -91,33 +93,34 @@ uint32_t paletteColors[] = {
 
 
 uint8_t initRenderer(void) {
-	if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+	if(SDL_Init(SDL_INIT_VIDEO) == 0) {
 		printf("could not init SDL\n");
 		return 1;
 	}
 
-	tile = SDL_CreateRGBSurface(0, 8, 16, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+	//tile = SDL_CreateRGBSurface(0, 8, 16, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+	tile = SDL_CreateSurface(8, 16, SDL_PIXELFORMAT_RGBA8888);
 	// dealing with any pitch that isn't like uint32_t aligned would be a pain
 	// since I can't just add a single byte to a uint32_t* without breaking strict aliasing
 	// (or at least I don't think I can with the methods I know in a way that isn't dumb or rewrites all of drawTile)
 	// so I'm just not dealing with pitch at all
 	if(tile->pitch != sizeof(uint32_t)*8) {
 		printf("SDL surface pitch is not just 32 bytes, not gonna deal with that for now\n");
-		SDL_FreeSurface(tile);
+		SDL_DestroySurface(tile);
 		SDL_Quit();
 		return 1;
 	}
-	w = SDL_CreateWindow("nesEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+	w = SDL_CreateWindow("nesEmu", SCREEN_WIDTH, SCREEN_HEIGHT, 0);
 	windowSurface = SDL_GetWindowSurface(w);
-	frameBuffer = SDL_CreateRGBSurface(0, FB_WIDTH, FB_HEIGHT, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
-	nameTable = SDL_CreateRGBSurface(0, NAMETABLE_WIDTH, NAMETABLE_HEIGHT, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+	frameBuffer = SDL_CreateSurface(FB_WIDTH, FB_HEIGHT,SDL_PIXELFORMAT_RGBA8888);
+	nameTable = SDL_CreateSurface(NAMETABLE_WIDTH, NAMETABLE_HEIGHT, SDL_PIXELFORMAT_RGBA8888);
 	return 0;
 }
 
 void uninitRenderer(void) {
-	SDL_FreeSurface(tile);
-	SDL_FreeSurface(frameBuffer);
-	SDL_FreeSurface(nameTable);
+	SDL_DestroySurface(tile);
+	SDL_DestroySurface(frameBuffer);
+	SDL_DestroySurface(nameTable);
 	SDL_DestroyWindowSurface(w);
 	SDL_DestroyWindow(w);
 
@@ -191,7 +194,7 @@ void drawNametable(uint8_t* chrBank, uint8_t* table, uint16_t x, uint16_t y) {
 }
 
 void render(void) {
-	SDL_FillRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, paletteColors[ppuRAM[0x3F00]]);
+	SDL_FillSurfaceRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, paletteColors[ppuRAM[0x3F00]]);
 
 	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
 	if(ppu.mirror & MIRROR_HORIZONTAL) {
@@ -269,11 +272,20 @@ void render(void) {
 			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2], paletteIndex);
 		}
 	}
-	SDL_BlitScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT});
+	SDL_BlitSurfaceScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT}, SDL_SCALEMODE_NEAREST);
 	SDL_UpdateWindowSurface(w);
 
 	#ifndef UNCAP_FPS
+		static uint64_t lastTicks = 0;
+		if(lastTicks == 0) {
+			lastTicks = SDL_GetTicksNS();
+		}
+		uint64_t currentTicks = SDL_GetTicksNS();
+		if(currentTicks - lastTicks < 1000000000/60) {
+			SDL_DelayNS(1000000000/60 - (currentTicks - lastTicks));
+		}
+		lastTicks = SDL_GetTicksNS();
 		// rendering is already fast enough that this should be fine
-		SDL_Delay(1000/60);
+		//SDL_Delay(1000/60);
 	#endif
 }
