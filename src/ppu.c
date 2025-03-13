@@ -237,7 +237,7 @@ void render(void) {
 
 	// draw sprites in OAM
 	for(uint8_t i = 0; i < 64; ++i) {
-		#ifdef DEBUG
+		/*#ifdef DEBUG
 			SDL_Rect asdf = {
 				.x = ppu.oam[i*4 + 3],
 				.y = ppu.oam[i*4 + 0],
@@ -245,7 +245,7 @@ void render(void) {
 				.h = 8,
 			};
 			SDL_FillRect(frameBuffer, &asdf, 0xFFFFFF55);
-		#endif
+		#endif*/
 
 		uint8_t tileID = ppu.oam[i*4 + 1];
 		uint8_t* bank;

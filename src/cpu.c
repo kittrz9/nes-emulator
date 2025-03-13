@@ -49,12 +49,14 @@ void cpuInit(void) {
 }
 
 void push(uint8_t byte) {
-	ramWriteByte(0x100 + cpu.s--, byte);
+	ramWriteByte(0x100 + cpu.s, byte);
+	--cpu.s;
 	return;
 }
 
 uint8_t pop(void) {
-	return ramReadByte(0x100 + ++cpu.s);
+	++cpu.s;
+	return ramReadByte(0x100 + cpu.s);
 }
 
 void branch(uint8_t cond) {
@@ -140,8 +142,10 @@ uint8_t rol(uint8_t byte) {
 
 void adc(uint8_t byte) {
 	uint16_t tmp = cpu.a + byte + (cpu.p & C_FLAG);
-	setFlag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
-	cpu.a = tmp & 0xFF;
+	uint8_t result = tmp & 0xFF;
+	//setFlag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
+	setFlag(V_FLAG, (result ^ cpu.a) & (result ^ byte) & 0x80);
+	cpu.a = result;
 	setFlag(C_FLAG, tmp > 255);
 	setFlag(Z_FLAG, cpu.a == 0);
 	setFlag(N_FLAG, (cpu.a & 0x80) != 0);
@@ -149,10 +153,12 @@ void adc(uint8_t byte) {
 }
 
 void sbc(uint8_t byte) {
-	uint16_t tmp = cpu.a - byte - !(cpu.p & C_FLAG);
-	setFlag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
+	int16_t tmp = cpu.a - byte - !(cpu.p & C_FLAG);
+	//setFlag(V_FLAG, ((cpu.a & 0x80) ^ (byte & 0x80)) != (tmp & 0x80));
+	uint8_t result = tmp & 0xFF;
+	setFlag(V_FLAG, (result ^ cpu.a) & (result ^ ~byte) & 0x80);
 	cpu.a = tmp & 0xFF;
-	setFlag(C_FLAG, tmp < 256);
+	setFlag(C_FLAG, !(tmp < 0));
 	setFlag(Z_FLAG, cpu.a == 0);
 	setFlag(N_FLAG, (cpu.a & 0x80) != 0);
 }
@@ -229,7 +235,7 @@ uint8_t cpuStep(void) {
 			break;
 		// PHP
 		case 0x08:
-			push(cpu.p | B_FLAG);
+			push(cpu.p | B_FLAG | 0x20);
 			cpu.pc += 1;
 			cpu.cycles += 3;
 			break;
@@ -425,8 +431,8 @@ uint8_t cpuStep(void) {
 		// RTI
 		case 0x40:
 			cpu.p = pop();
-			cpu.pc = pop() << 8;
-			cpu.pc |= pop();
+			cpu.pc = pop();
+			cpu.pc |= pop()<<8;
 			cpu.cycles += 6;
 			break;
 		// EOR (ind, X)
@@ -576,10 +582,21 @@ uint8_t cpuStep(void) {
 			cpu.cycles += 2;
 			break;
 		// JMP (ind)
-		case 0x6C:
-			cpu.pc = ADDR16(ADDR16(cpu.pc+1));
+		case 0x6C: {
+			uint16_t addr1 = ramReadByte(cpu.pc+1) | ramReadByte(cpu.pc+2)<<8;
+			if(((cpu.pc+2) & 0xFF) == 0xFF) {
+				addr1 -= 0x100;
+			}
+			uint16_t addr2 = ramReadByte(addr1) | ramReadByte(addr1+1)<<8;
+			if((addr1 & 0xFF) == 0xFF) {
+				addr2 = ramReadByte(addr1) | ramReadByte(addr1&0xFF00)<<8;
+			} else {
+				addr2 = ramReadByte(addr1) | ramReadByte(addr1+1)<<8;
+			}
+			cpu.pc = addr2;
 			cpu.cycles += 5;
 			break;
+		}
 		// ADC abs
 		case 0x6D:
 			adc(ABS);
@@ -641,11 +658,16 @@ uint8_t cpuStep(void) {
 			cpu.cycles += 7;
 			break;
 		// STA (ind, X)
-		case 0x81:
-			ramWriteByte(INDEX_INDIR_X_ADDR, cpu.a);
+		case 0x81: {
+			// I probably should've just made the addressing mode stuff functions instead of macros to avoid having to debug such a nightmare
+			// this fixes the only issue with indexed indirect that got detected by nestest
+			uint16_t addr = ramReadByte(ARG8 + cpu.x);
+			addr |= ramReadByte((ARG8 + cpu.x + 1) & 0xFF)<<8;
+			ramWriteByte(addr, cpu.a);
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
+		}
 		// STY zp
 		case 0x84:
 			ramWriteByte(ZP_ADDR, cpu.y);
@@ -755,11 +777,14 @@ uint8_t cpuStep(void) {
 			cpu.cycles += 2;
 			break;
 		// LDA (ind, X)
-		case 0xA1:
-			load(&cpu.a, INDEX_INDIR_X);
+		case 0xA1: {
+			uint16_t addr = ramReadByte((ARG8 + cpu.x) & 0xFF);
+			addr |= ramReadByte((ARG8 + cpu.x + 1) & 0xFF)<<8;
+			load(&cpu.a, ramReadByte(addr));
 			cpu.pc += 2;
 			cpu.cycles += 6;
 			break;
+		}
 		// LDX imm
 		case 0xA2:
 			load(&cpu.x, IMM);
@@ -827,11 +852,15 @@ uint8_t cpuStep(void) {
 			cpu.cycles += 2;
 			break;
 		// LDA (ind), Y
-		case 0xB1:
-			load(&cpu.a, INDIR_INDEX_Y);
+		case 0xB1: {
+			uint16_t addr = ramReadByte(ARG8);
+			addr |= (ramReadByte((ARG8+1)&0xFF))<<8;
+			addr += cpu.y;
+			load(&cpu.a, ramReadByte(addr));
 			cpu.pc += 2;
 			cpu.cycles += 5; // figure out what the docs mean when they say to add 1 cycle when it "crosses a page boundary" here
 			break;
+		}
 		// LDY zp, X
 		case 0xB4:
 			load(&cpu.y, ZP_INDEX(cpu.x));

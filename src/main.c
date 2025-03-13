@@ -48,8 +48,8 @@ int main(int argc, char** argv) {
 		ppu.status |= 0x80;
 		ppu.w = 0;
 		if((ppu.control & 0x80) != 0) {
-			push(cpu.pc & 0xFF);
 			push((cpu.pc & 0xFF00) >> 8);
+			push(cpu.pc & 0xFF);
 			push(cpu.p & ~(B_FLAG));
 			cpu.p |= I_FLAG;
 			cpu.pc = ADDR16(NMI_VECTOR);
