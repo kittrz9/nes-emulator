@@ -131,8 +131,17 @@ uint8_t ramReadByte(uint16_t addr) {
 				ppu.status &= ~(0x80);
 				return tmp;
 			}
-		case 0x2007:
-			return ppuRAM[ppu.vramAddr%0x4000];
+		case 0x2007: {
+			// https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer
+			uint8_t v = ppu.readBuffer;
+			ppu.readBuffer = ppuRAM[ppu.vramAddr%0x4000];
+			if(ppu.control & 0x4) {
+				ppu.vramAddr += 32;
+			} else {
+				ppu.vramAddr += 1;
+			}
+			return v;
+		}
 		case 0x2000:
 		case 0x2001:
 		case 0x2003:
