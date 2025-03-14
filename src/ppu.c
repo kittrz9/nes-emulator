@@ -195,50 +195,51 @@ void drawNametable(uint8_t* chrBank, uint8_t* table, uint16_t x, uint16_t y) {
 void drawPixel(uint16_t x, uint16_t y) {
 	// incredibly messy code
 	// should eventually also handle drawing sprites so it can set the sprite zero hit flag accurately
-	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
-	uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
-	uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
-	uint16_t nametableX = (x + scrollX) % 512;
-	uint16_t nametableY = (y + scrollY) % 480;
-	uint8_t* table;
-	if(ppu.mirror & MIRROR_HORIZONTAL) {
-		if(nametableX >= 256) {
-			table = nametableBank2;
+	if(ppu.mask & 0x08) {
+		uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
+		uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
+		uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
+		uint16_t nametableX = (x + scrollX) % 512;
+		uint16_t nametableY = (y + scrollY) % 480;
+		uint8_t* table;
+		if(ppu.mirror & MIRROR_HORIZONTAL) {
+			if(nametableX >= 256) {
+				table = nametableBank2;
+			} else {
+				table = nametableBank1;
+			}
 		} else {
-			table = nametableBank1;
+			if(nametableY >= 240) {
+				table = nametableBank2;
+			} else {
+				table = nametableBank1;
+			}
 		}
-	} else {
-		if(nametableY >= 240) {
-			table = nametableBank2;
+		uint8_t* attribTable = table + 0x3C0;
+		uint8_t tileID = table[((nametableX%256)/8) + ((nametableY%240)/8)*32];
+		uint8_t tileX = (nametableX/8)%32;
+		uint8_t tileY = nametableY/8;
+		uint8_t shift = (tileX/2) % 2;
+		if((tileY/2)% 2 == 1) {
+			shift += 2;
+		}
+		shift *= 2;
+		uint8_t attribX = tileX/4;
+		uint8_t attribY = tileY/4;
+		uint8_t attribIndex = ((attribY * 8) + attribX)%64;
+		uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;
+		uint8_t* bitplane1 = bank + tileID*8*2 + (nametableY)%8;
+		uint8_t* bitplane2 = bitplane1 + 8;
+		uint32_t* target = (uint32_t*)(((uint8_t*)frameBuffer->pixels + x*sizeof(uint32_t)) + y*frameBuffer->pitch);
+		uint8_t combined = ((*bitplane1 >> (7-(nametableX%8))) & 1) | (((*bitplane2 >> (7-(nametableX%8))) & 1) << 1);
+		uint8_t newIndex = paletteIndex | combined;
+		uint8_t* palette = &ppuRAM[0x3F00];
+		if(combined == 0) {
+			*target = paletteColors[ppuRAM[0x3F00]];
 		} else {
-			table = nametableBank1;
+			*target = paletteColors[palette[newIndex]] & (combined == 0 ? paletteColors[ppuRAM[0x3F00]]: 0xFFFFFFFF);
 		}
 	}
-	uint8_t* attribTable = table + 0x3C0;
-	uint8_t tileID = table[((nametableX%256)/8) + ((nametableY%240)/8)*32];
-	uint8_t tileX = (nametableX/8)%32;
-	uint8_t tileY = nametableY/8;
-	uint8_t shift = (tileX/2) % 2;
-	if((tileY/2)% 2 == 1) {
-		shift += 2;
-	}
-	shift *= 2;
-	uint8_t attribX = tileX/4;
-	uint8_t attribY = tileY/4;
-	uint8_t attribIndex = ((attribY * 8) + attribX)%64;
-	uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;
-	uint8_t* bitplane1 = bank + tileID*8*2 + (nametableY)%8;
-	uint8_t* bitplane2 = bitplane1 + 8;
-	uint32_t* target = (uint32_t*)(((uint8_t*)frameBuffer->pixels + x*sizeof(uint32_t)) + y*frameBuffer->pitch);
-	uint8_t combined = ((*bitplane1 >> (7-(nametableX%8))) & 1) | (((*bitplane2 >> (7-(nametableX%8))) & 1) << 1);
-	uint8_t newIndex = paletteIndex | combined;
-	uint8_t* palette = &ppuRAM[0x3F00];
-	if(combined == 0) {
-		*target = paletteColors[ppuRAM[0x3F00]];
-	} else {
-		*target = paletteColors[palette[newIndex]] & (combined == 0 ? paletteColors[ppuRAM[0x3F00]]: 0xFFFFFFFF);
-	}
-	++target;
 }
 
 void render(void) {
@@ -289,40 +290,42 @@ void render(void) {
 	}*/
 
 	// draw sprites in OAM
-	for(uint8_t i = 0; i < 64; ++i) {
-		/*#ifdef DEBUG
-			SDL_Rect asdf = {
-				.x = ppu.oam[i*4 + 3],
-				.y = ppu.oam[i*4 + 0],
-				.w = 8,
-				.h = 8,
-			};
-			SDL_FillRect(frameBuffer, &asdf, 0xFFFFFF55);
-		#endif*/
+	if(ppu.mask & 0x10) {
+		for(uint8_t i = 0; i < 64; ++i) {
+			/*#ifdef DEBUG
+				SDL_Rect asdf = {
+					.x = ppu.oam[i*4 + 3],
+					.y = ppu.oam[i*4 + 0],
+					.w = 8,
+					.h = 8,
+				};
+				SDL_FillRect(frameBuffer, &asdf, 0xFFFFFF55);
+			#endif*/
 
-		uint8_t tileID = ppu.oam[i*4 + 1];
-		uint8_t* bank;
-		if(ppu.control & 0x20) {
-			bank = &ppuRAM[(tileID & 1 ? 0x1000 : 0x0000)];
-			tileID &= ~1;
-		} else {
-			bank = &ppuRAM[(ppu.control & 0x08 ? 0x1000 : 0x0000)];
-		}
-
-		uint8_t* bitplaneStart = bank + tileID*8*2;
-		uint8_t paletteIndex = 0x10 | ((ppu.oam[i*4 + 2]&0x3) << 2);
-		if(ppu.control & 0x20) {
-			uint8_t sprite1Off = 0;
-			uint8_t sprite2Off = 8;
-			if(ppu.oam[i*4 + 2] & FLIP_VERTICAL) {
-				sprite1Off = 8;
-				sprite2Off = 0;
+			uint8_t tileID = ppu.oam[i*4 + 1];
+			uint8_t* bank;
+			if(ppu.control & 0x20) {
+				bank = &ppuRAM[(tileID & 1 ? 0x1000 : 0x0000)];
+				tileID &= ~1;
+			} else {
+				bank = &ppuRAM[(ppu.control & 0x08 ? 0x1000 : 0x0000)];
 			}
-			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+sprite1Off, ppu.oam[i*4 + 2], paletteIndex);
-			bitplaneStart += 16;
-			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+sprite2Off, ppu.oam[i*4 + 2], paletteIndex);
-		} else {
-			drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2], paletteIndex);
+
+			uint8_t* bitplaneStart = bank + tileID*8*2;
+			uint8_t paletteIndex = 0x10 | ((ppu.oam[i*4 + 2]&0x3) << 2);
+			if(ppu.control & 0x20) {
+				uint8_t sprite1Off = 0;
+				uint8_t sprite2Off = 8;
+				if(ppu.oam[i*4 + 2] & FLIP_VERTICAL) {
+					sprite1Off = 8;
+					sprite2Off = 0;
+				}
+				drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+sprite1Off, ppu.oam[i*4 + 2], paletteIndex);
+				bitplaneStart += 16;
+				drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+sprite2Off, ppu.oam[i*4 + 2], paletteIndex);
+			} else {
+				drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2], paletteIndex);
+			}
 		}
 	}
 	SDL_BlitSurfaceScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT}, SDL_SCALEMODE_NEAREST);

@@ -2,7 +2,7 @@
 
 set -xe
 
-SDL_VERSION="3.1.6"
+SDL_VERSION="3.2.8"
 
 if [ "$DEBUG" ]; then
 	DEFINES="-DDEBUG -DUNCAP_FPS"
@@ -23,7 +23,7 @@ OBJS=""
 
 if ! [ -d "SDL3-$SDL_VERSION" ]; then
 	if ! [ -f "SDL3-$SDL_VERSION.tar.gz" ]; then
-		wget "https://github.com/libsdl-org/SDL/releases/download/preview-$SDL_VERSION/SDL3-$SDL_VERSION.tar.gz"
+		wget "https://github.com/libsdl-org/SDL/releases/download/release-$SDL_VERSION/SDL3-$SDL_VERSION.tar.gz"
 	fi
 	tar -xavf SDL3-$SDL_VERSION.tar.gz
 fi
