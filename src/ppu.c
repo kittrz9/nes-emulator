@@ -218,7 +218,7 @@ void drawPixel(uint16_t x, uint16_t y) {
 		uint8_t* attribTable = table + 0x3C0;
 		uint8_t tileID = table[((nametableX%256)/8) + ((nametableY%240)/8)*32];
 		uint8_t tileX = (nametableX/8)%32;
-		uint8_t tileY = nametableY/8;
+		uint8_t tileY = (nametableY/8)%30;
 		uint8_t shift = (tileX/2) % 2;
 		if((tileY/2)% 2 == 1) {
 			shift += 2;
