@@ -1,6 +1,5 @@
 #include "ppu.h"
 
-// not doing <SDL2/SDL.h> here to include the downloaded SDL headers instead
 #include "SDL3/SDL.h"
 
 #include <stdio.h>
@@ -193,10 +192,59 @@ void drawNametable(uint8_t* chrBank, uint8_t* table, uint16_t x, uint16_t y) {
 	}
 }
 
-void render(void) {
-	SDL_FillSurfaceRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, paletteColors[ppuRAM[0x3F00]]);
-
+void drawPixel(uint16_t x, uint16_t y) {
+	// incredibly messy code
+	// should eventually also handle drawing sprites so it can set the sprite zero hit flag accurately
 	uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
+	uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
+	uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
+	uint16_t nametableX = (x + scrollX) % 512;
+	uint16_t nametableY = (y + scrollY) % 480;
+	uint8_t* table;
+	if(ppu.mirror & MIRROR_HORIZONTAL) {
+		if(nametableX >= 256) {
+			table = nametableBank2;
+		} else {
+			table = nametableBank1;
+		}
+	} else {
+		if(nametableY >= 240) {
+			table = nametableBank2;
+		} else {
+			table = nametableBank1;
+		}
+	}
+	uint8_t* attribTable = table + 0x3C0;
+	uint8_t tileID = table[((nametableX%256)/8) + ((nametableY%240)/8)*32];
+	uint8_t tileX = (nametableX/8)%32;
+	uint8_t tileY = nametableY/8;
+	uint8_t shift = (tileX/2) % 2;
+	if((tileY/2)% 2 == 1) {
+		shift += 2;
+	}
+	shift *= 2;
+	uint8_t attribX = tileX/4;
+	uint8_t attribY = tileY/4;
+	uint8_t attribIndex = ((attribY * 8) + attribX)%64;
+	uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;
+	uint8_t* bitplane1 = bank + tileID*8*2 + (nametableY)%8;
+	uint8_t* bitplane2 = bitplane1 + 8;
+	uint32_t* target = (uint32_t*)(((uint8_t*)frameBuffer->pixels + x*sizeof(uint32_t)) + y*frameBuffer->pitch);
+	uint8_t combined = ((*bitplane1 >> (7-(nametableX%8))) & 1) | (((*bitplane2 >> (7-(nametableX%8))) & 1) << 1);
+	uint8_t newIndex = paletteIndex | combined;
+	uint8_t* palette = &ppuRAM[0x3F00];
+	if(combined == 0) {
+		*target = paletteColors[ppuRAM[0x3F00]];
+	} else {
+		*target = paletteColors[palette[newIndex]] & (combined == 0 ? paletteColors[ppuRAM[0x3F00]]: 0xFFFFFFFF);
+	}
+	++target;
+}
+
+void render(void) {
+	//SDL_FillSurfaceRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, paletteColors[ppuRAM[0x3F00]]);
+
+	/*uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
 	if(ppu.mirror & MIRROR_HORIZONTAL) {
 		drawNametable(bank, nametableBank1, 0, 0);
 		drawNametable(bank, nametableBank2, 256, 0);
@@ -233,7 +281,12 @@ void render(void) {
 	if(scrollX + 256 > 512) {
 		srcRect.x -= 512;
 		SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
-	}
+	}*/
+	/*for(uint16_t y = 0; y <= 240; ++y) {
+		for(uint16_t x = 0; x <= 256; ++x) {
+			drawPixel(x,y);
+		}
+	}*/
 
 	// draw sprites in OAM
 	for(uint8_t i = 0; i < 64; ++i) {

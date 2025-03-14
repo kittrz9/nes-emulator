@@ -12,7 +12,7 @@ fi
 
 [ "$CC" ] || CC=gcc
 [ "$NAME" ] || NAME="nesEmu"
-CFLAGS="$CFLAGS -ISDL3-$SDL_VERSION/include/ -O2 -Wall -Wextra -Wpedantic -std=c99"
+CFLAGS="$CFLAGS -g -ISDL3-$SDL_VERSION/include/ -O2 -Wall -Wextra -Wpedantic -std=c99"
 LDFLAGS="$LDFLAGS -Wall -Wextra -Wpedantic"
 DEFINES="$DEFINES"
 # I'm probably not using rpath correctly lmao

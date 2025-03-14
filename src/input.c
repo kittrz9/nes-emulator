@@ -57,5 +57,6 @@ uint8_t handleInput(void) {
 		debugScreenshot();
 		exit(1);
 	}
+	SDL_PumpEvents();
 	return 0;
 }

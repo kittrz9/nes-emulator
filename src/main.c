@@ -35,8 +35,17 @@ int main(int argc, char** argv) {
 		if(handleInput() != 0) { break; }
 
 		ppu.status &= ~(0x40);
+		uint16_t ppuPixel = 0;
+		uint32_t lastCycles;
 		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
+			lastCycles = cpu.cycles;
 			cpuStep();
+			for(uint8_t i = 0; ppuPixel < 256*240 && i < cpu.cycles - lastCycles; ++i) {
+				for(uint8_t j = 0; j < 3; ++j) {
+					drawPixel(ppuPixel % 256, ppuPixel / 256);
+					++ppuPixel;
+				}
+			}
 			if(cpu.cycles >= CYCLES_PER_SCANLINE * ppu.oam[0]) {
 				ppu.status |= 0x40;
 			}
