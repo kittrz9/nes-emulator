@@ -148,7 +148,7 @@ void mmc3Write(uint16_t addr, uint8_t byte) {
 				mmc3.prgRamWriteProtect = (byte & 0x80) >> 7;
 				mmc3.prgRamEnable = (byte & 0x40) >> 6;
 			} else {
-				ppu.mirror = byte & 1;
+				ppu.mirror = (~byte) & 1;
 			}
 			break;
 		case 0xC:
