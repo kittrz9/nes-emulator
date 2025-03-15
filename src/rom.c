@@ -17,7 +17,7 @@ uint8_t (*romReadByte)(uint16_t addr);
 uint8_t (*chrReadByte)(uint16_t addr);
 
 uint8_t chrReadNormal(uint16_t addr) {
-	return ppuRAM[addr];
+	return chrROM[addr];
 }
 
 void mapperNoWrite(uint16_t addr, uint8_t byte) {
@@ -224,10 +224,10 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 				return chrROM[addr - 0x0C00 + mmc3.r[5] * 0x400];
 			case 4: // 10-13
 			case 5: // 14-17
-				return chrROM[addr - 0x1000 + (mmc3.r[0]&0xFE) * 0x800];
+				return chrROM[addr - 0x1000 + (mmc3.r[0]&0xFE) * 0x400];
 			case 6: // 18-1B
 			case 7: // 1C-1F
-				return chrROM[addr - 0x1800 + (mmc3.r[1]&0xFE) * 0x800];
+				return chrROM[addr - 0x1800 + (mmc3.r[1]&0xFE) * 0x400];
 			default:
 				printf("ASDFFDSASFD\n");
 				exit(1);
@@ -236,10 +236,10 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 		switch((addr >> 8) / 4) {
 			case 0: // 0-3
 			case 1: // 4-7
-				return chrROM[addr + mmc3.r[0] * 0x800];
+				return chrROM[addr + (mmc3.r[0]&0xFE) * 0x400];
 			case 2: // 8-B
 			case 3: // C-F
-				return chrROM[addr - 0x0800 + mmc3.r[1] * 0x800];
+				return chrROM[addr - 0x0800 + (mmc3.r[1]&0xFE) * 0x400];
 			case 4: // 10-13
 				return chrROM[addr - 0x1000 + mmc3.r[2] * 0x400];
 			case 5: // 14-17
