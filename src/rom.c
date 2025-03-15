@@ -22,6 +22,10 @@ uint8_t chrReadNormal(uint16_t addr) {
 	return chrROM[addr];
 }
 
+void chrWriteNormal(uint16_t addr, uint8_t byte) {
+	chrROM[addr] = byte;
+}
+
 void mapperNoWrite(uint16_t addr, uint8_t byte) {
 	// avoid unused variable warning
 	(void)addr;
@@ -117,10 +121,6 @@ uint8_t mmc1ChrRead(uint16_t addr) {
 	return chrROM[addr];
 }
 
-void mmc1ChrWrite(uint16_t addr, uint8_t byte) {
-	chrROM[addr] = byte;
-}
-
 uint8_t unromBank = 0;
 
 void unromWrite(uint16_t addr, uint8_t byte) {
@@ -168,17 +168,17 @@ void mmc3Write(uint16_t addr, uint8_t byte) {
 		case 0xC:
 		case 0xD:
 			if(addr & 1) {
-				printf("IRQ LATCH WRITE\n");
+				//printf("IRQ LATCH WRITE\n");
 			} else {
-				printf("IRQ RESET WRITE\n");
+				//printf("IRQ RESET WRITE\n");
 			}
 			break;
 		case 0xE:
 		case 0xF:
 			if(addr & 1) {
-				printf("IRQ DISABLE WRITE\n");
+				//printf("IRQ DISABLE WRITE\n");
 			} else {
-				printf("IRQ ENABLE WRITE\n");
+				//printf("IRQ ENABLE WRITE\n");
 			}
 			break;
 		default:
@@ -281,7 +281,7 @@ void setMapper(uint16_t id) {
 			romReadByte = mmc1Read;
 			romWriteByte = mmc1Write;
 			chrReadByte = mmc1ChrRead;
-			chrWriteByte = mmc1ChrWrite;
+			chrWriteByte = chrWriteNormal;
 			mmc1.shiftReg = 0x10;
 			mmc1.control = 0x0C;
 			break;
@@ -289,13 +289,13 @@ void setMapper(uint16_t id) {
 			romReadByte = unromRead;
 			romWriteByte = unromWrite;
 			chrReadByte = chrReadNormal;
-			chrWriteByte = mapperNoWrite;
+			chrWriteByte = chrWriteNormal; 
 			break;
 		case 0x04:
 			romReadByte = mmc3Read;
 			romWriteByte = mmc3Write;
 			chrReadByte = mmc3ChrRead;
-			chrWriteByte = mapperNoWrite;
+			chrWriteByte = chrWriteNormal;
 			break;
 		default:
 			printf("unsupported mapper %02X\n", id);
