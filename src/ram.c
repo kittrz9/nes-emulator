@@ -48,7 +48,11 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			#ifdef DEBUG
 				printf("writing %02X into ppu %04X\n", byte, ppu.vramAddr);
 			#endif
-			ppuRAM[ppu.vramAddr % 0x4000] = byte;
+			if(ppu.vramAddr < 0x2000) {
+				chrWriteByte(ppu.vramAddr, byte);
+			} else {
+				ppuRAM[ppu.vramAddr % 0x4000] = byte;
+			}
 			if(ppu.vramAddr >= 0x2000 && ppu.vramAddr <= 0x3000) {
 				if(ppu.mirror & MIRROR_HORIZONTAL) {
 					if(ppu.vramAddr & 0x400) {

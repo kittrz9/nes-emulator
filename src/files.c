@@ -61,12 +61,14 @@ uint8_t loadROM(const char* path) {
 	uint8_t* chrLocation = prgLocation + prgSize;
 
 	prgROM = malloc(prgSize);
-	chrROM = malloc(chrSize);
 
 	memcpy(prgROM, prgLocation, prgSize);
 	if(chrSize != 0) {
+		chrROM = malloc(chrSize);
 		memcpy(chrROM, chrLocation, chrSize);
 		memcpy(ppuRAM, chrROM, 0x2000);
+	} else {
+		chrROM = malloc(0x2000);
 	}
 
 	ppu.mirror = header->flags6 & 0x1;

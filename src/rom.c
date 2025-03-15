@@ -14,6 +14,8 @@ size_t chrSize;
 
 void (*romWriteByte)(uint16_t addr, uint8_t byte);
 uint8_t (*romReadByte)(uint16_t addr);
+
+void (*chrWriteByte)(uint16_t addr, uint8_t byte);
 uint8_t (*chrReadByte)(uint16_t addr);
 
 uint8_t chrReadNormal(uint16_t addr) {
@@ -55,22 +57,23 @@ void mmc1Write(uint16_t addr, uint8_t byte) {
 				ppu.mirror = ~tmp & 0x1;
 				break;
 			case 1:
-				mmc1.chrBank0 = tmp;
-				if(chrSize == 0) { break; }
+				printf("%02X\n", tmp);
+				mmc1.chrBank0 = (tmp & 0x1F);
+				/*if(chrSize == 0) { break; }
 				// 1 8k bank if 0, 2 4k banks if 1
 				if(mmc1.control & 0x10) {
 					// dumb workaround
 					memcpy(ppuRAM, chrROM + (mmc1.chrBank0 << 12), 0x1000);
 				} else {
 					memcpy(ppuRAM, chrROM + ((mmc1.chrBank0 & ~1) << 12), 0x2000);
-				}
+				}*/
 				break;
 			case 2:
-				if(chrSize == 0) { break; }
-				mmc1.chrBank1 = tmp;
-				if(mmc1.control & 0x10) {
+				//if(chrSize == 0) { break; }
+				mmc1.chrBank1 = (tmp & 0x1F);
+				/*if(mmc1.control & 0x10) {
 					memcpy(ppuRAM+0x1000, chrROM + (mmc1.chrBank1 << 12), 0x1000);
-				}
+				}*/
 				break;
 			case 3:
 				mmc1.prgBank = tmp;
@@ -105,6 +108,17 @@ uint8_t mmc1Read(uint16_t addr) {
 			break;
 	}
 	return prgROM[newAddr];
+}
+
+uint8_t mmc1ChrRead(uint16_t addr) {
+	// probably horribly innacurate and will break for most things
+	// but this works for now
+	// I also haven't encountered an mmc1 rom that doesn't use chr ram
+	return chrROM[addr];
+}
+
+void mmc1ChrWrite(uint16_t addr, uint8_t byte) {
+	chrROM[addr] = byte;
 }
 
 uint8_t unromBank = 0;
@@ -261,11 +275,13 @@ void setMapper(uint16_t id) {
 			romReadByte = nromRead;
 			romWriteByte = mapperNoWrite;
 			chrReadByte = chrReadNormal;
+			chrWriteByte = mapperNoWrite;
 			break;
 		case 0x01:
 			romReadByte = mmc1Read;
 			romWriteByte = mmc1Write;
-			chrReadByte = chrReadNormal;
+			chrReadByte = mmc1ChrRead;
+			chrWriteByte = mmc1ChrWrite;
 			mmc1.shiftReg = 0x10;
 			mmc1.control = 0x0C;
 			break;
@@ -273,11 +289,13 @@ void setMapper(uint16_t id) {
 			romReadByte = unromRead;
 			romWriteByte = unromWrite;
 			chrReadByte = chrReadNormal;
+			chrWriteByte = mapperNoWrite;
 			break;
 		case 0x04:
 			romReadByte = mmc3Read;
 			romWriteByte = mmc3Write;
 			chrReadByte = mmc3ChrRead;
+			chrWriteByte = mapperNoWrite;
 			break;
 		default:
 			printf("unsupported mapper %02X\n", id);
