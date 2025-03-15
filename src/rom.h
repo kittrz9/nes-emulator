@@ -14,5 +14,6 @@ void setMapper(uint16_t id);
 // probably should get better names for these that aren't so similar to the ram functions
 extern void (*romWriteByte)(uint16_t addr, uint8_t byte);
 extern uint8_t (*romReadByte)(uint16_t addr);
+extern uint8_t (*chrReadByte)(uint16_t addr);
 
 #endif

@@ -14,6 +14,11 @@ size_t chrSize;
 
 void (*romWriteByte)(uint16_t addr, uint8_t byte);
 uint8_t (*romReadByte)(uint16_t addr);
+uint8_t (*chrReadByte)(uint16_t addr);
+
+uint8_t chrReadNormal(uint16_t addr) {
+	return ppuRAM[addr];
+}
 
 void mapperNoWrite(uint16_t addr, uint8_t byte) {
 	// avoid unused variable warning
@@ -127,7 +132,7 @@ struct {
 } mmc3;
 
 void mmc3Write(uint16_t addr, uint8_t byte) {
-	printf("MMC3 WRITE %04X %02X\n", addr, byte);
+	//printf("MMC3 WRITE %04X %02X\n", addr, byte);
 	switch((addr & 0xF000) >> 12) {
 		case 0x8:
 		case 0x9:
@@ -205,26 +210,74 @@ uint8_t mmc3Read(uint16_t addr) {
 	}
 }
 
+uint8_t mmc3ChrRead(uint16_t addr) {
+	//printf("MMC3 CHR READ %04X\n", addr);
+	if(mmc3.bankSelect & 0x80) {
+		switch((addr >> 8) / 4) {
+			case 0: // 0-3
+				return chrROM[addr + mmc3.r[2] * 0x400];
+			case 1: // 4-7
+				return chrROM[addr - 0x0400 + mmc3.r[3] * 0x400];
+			case 2: // 8-B
+				return chrROM[addr - 0x0800+ mmc3.r[4] * 0x400];
+			case 3: // C-F
+				return chrROM[addr - 0x0C00 + mmc3.r[5] * 0x400];
+			case 4: // 10-13
+			case 5: // 14-17
+				return chrROM[addr - 0x1000 + (mmc3.r[0]&0xFE) * 0x800];
+			case 6: // 18-1B
+			case 7: // 1C-1F
+				return chrROM[addr - 0x1800 + (mmc3.r[1]&0xFE) * 0x800];
+			default:
+				printf("ASDFFDSASFD\n");
+				exit(1);
+		}
+	} else {
+		switch((addr >> 8) / 4) {
+			case 0: // 0-3
+			case 1: // 4-7
+				return chrROM[addr + mmc3.r[0] * 0x800];
+			case 2: // 8-B
+			case 3: // C-F
+				return chrROM[addr - 0x0800 + mmc3.r[1] * 0x800];
+			case 4: // 10-13
+				return chrROM[addr - 0x1000 + mmc3.r[2] * 0x400];
+			case 5: // 14-17
+				return chrROM[addr - 0x1400 + mmc3.r[3] * 0x400];
+			case 6: // 18-1B
+				return chrROM[addr - 0x1800 + mmc3.r[4] * 0x400];
+			case 7: // 1C-1F
+				return chrROM[addr - 0x1C00 + mmc3.r[5] * 0x400];
+			default:
+				printf("ASDFFDSASFD\n");
+				exit(1);
+		}
+	}
+}
 
 void setMapper(uint16_t id) {
 	switch(id) {
 		case 0x00:
 			romReadByte = nromRead;
 			romWriteByte = mapperNoWrite;
+			chrReadByte = chrReadNormal;
 			break;
 		case 0x01:
 			romReadByte = mmc1Read;
 			romWriteByte = mmc1Write;
+			chrReadByte = chrReadNormal;
 			mmc1.shiftReg = 0x10;
 			mmc1.control = 0x0C;
 			break;
 		case 0x02:
 			romReadByte = unromRead;
 			romWriteByte = unromWrite;
+			chrReadByte = chrReadNormal;
 			break;
 		case 0x04:
 			romReadByte = mmc3Read;
 			romWriteByte = mmc3Write;
+			chrReadByte = mmc3ChrRead;
 			break;
 		default:
 			printf("unsupported mapper %02X\n", id);

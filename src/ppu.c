@@ -4,6 +4,8 @@
 
 #include <stdio.h>
 
+#include "rom.h"
+
 ppu_t ppu;
 
 uint8_t ppuRAM[0x4000];
@@ -134,7 +136,7 @@ void debugScreenshot(void) {
 #define FLIP_HORIZONTAL 0x40
 #define FLIP_VERTICAL 0x80
 
-void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, uint8_t attribs, uint8_t paletteIndex) {
+void drawTile(SDL_Surface* dst, uint16_t bitplaneStart, uint16_t x, uint16_t y, uint8_t attribs, uint8_t paletteIndex) {
 	SDL_Rect targetRect = {
 		.x = x,
 		.y = y,
@@ -148,12 +150,12 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 		.h = 8,
 	};
 	uint32_t* target = (uint32_t*)tile->pixels + (attribs & FLIP_VERTICAL ? 56 : 0);
-	uint8_t* bitplane1 = bitplaneStart;
-	uint8_t* bitplane2 = bitplane1 + 8;
 	for(uint8_t j = 0; j < 8; ++j) {
+		uint8_t bitplane1 = chrReadByte(bitplaneStart + j);
+		uint8_t bitplane2 = chrReadByte(bitplaneStart + 8 + j);
 		uint8_t k = (attribs & FLIP_HORIZONTAL ? 0 : 7);
 		while(k < 8) {
-			uint8_t combined = ((*bitplane1 >> k) & 1) | (((*bitplane2 >> k) & 1) << 1);
+			uint8_t combined = ((bitplane1 >> k) & 1) | (((bitplane2 >> k) & 1) << 1);
 			uint8_t newIndex = paletteIndex | combined;
 			uint8_t* palette = &ppuRAM[0x3F00];
 			*target = paletteColors[palette[newIndex]] & (combined == 0 ? 0xFFFFFF00 : 0xFFFFFFFF);
@@ -163,13 +165,11 @@ void drawTile(SDL_Surface* dst, uint8_t* bitplaneStart, uint16_t x, uint16_t y, 
 		if(attribs & FLIP_VERTICAL) {
 			target -= 16;
 		}
-		++bitplane1;
-		++bitplane2;
 	}
 	SDL_BlitSurface(tile, &srcRect, dst, &targetRect);
 }
 
-void drawNametable(uint8_t* chrBank, uint8_t* table, uint16_t x, uint16_t y) {
+/*void drawNametable(uint8_t* chrBank, uint8_t* table, uint16_t x, uint16_t y) {
 	uint8_t* attribTable = table + 0x3C0;
 	for(uint16_t i = 0; i < 960; ++i) {
 		uint8_t tileID = *(table+i);
@@ -190,13 +190,13 @@ void drawNametable(uint8_t* chrBank, uint8_t* table, uint16_t x, uint16_t y) {
 		uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;
 		drawTile(nameTable, bitplaneStart, xPos, yPos, 0, paletteIndex);
 	}
-}
+}*/
 
 void drawPixel(uint16_t x, uint16_t y) {
 	// incredibly messy code
 	// should eventually also handle drawing sprites so it can set the sprite zero hit flag accurately
 	if(ppu.mask & 0x08) {
-		uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
+		uint16_t bank = (ppu.control & 0x10 ? 0x1000 : 0x0000);
 		uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
 		uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
 		uint16_t nametableX = (x + scrollX) % 512;
@@ -228,10 +228,12 @@ void drawPixel(uint16_t x, uint16_t y) {
 		uint8_t attribY = tileY/4;
 		uint8_t attribIndex = ((attribY * 8) + attribX)%64;
 		uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;
-		uint8_t* bitplane1 = bank + tileID*8*2 + (nametableY)%8;
-		uint8_t* bitplane2 = bitplane1 + 8;
+		/*uint8_t* bitplane1 = bank + tileID*8*2 + (nametableY)%8;
+		uint8_t* bitplane2 = bitplane1 + 8;*/
+		uint8_t bitplane1 = chrReadByte(bank + tileID*8*2 + nametableY%8);
+		uint8_t bitplane2 = chrReadByte(bank + tileID*8*2 + nametableY%8 + 8);
 		uint32_t* target = (uint32_t*)(((uint8_t*)frameBuffer->pixels + x*sizeof(uint32_t)) + y*frameBuffer->pitch);
-		uint8_t combined = ((*bitplane1 >> (7-(nametableX%8))) & 1) | (((*bitplane2 >> (7-(nametableX%8))) & 1) << 1);
+		uint8_t combined = ((bitplane1 >> (7-(nametableX%8))) & 1) | (((bitplane2 >> (7-(nametableX%8))) & 1) << 1);
 		uint8_t newIndex = paletteIndex | combined;
 		uint8_t* palette = &ppuRAM[0x3F00];
 		if(combined == 0) {
@@ -303,15 +305,15 @@ void render(void) {
 			#endif*/
 
 			uint8_t tileID = ppu.oam[i*4 + 1];
-			uint8_t* bank;
+			uint16_t bank;
 			if(ppu.control & 0x20) {
-				bank = &ppuRAM[(tileID & 1 ? 0x1000 : 0x0000)];
+				bank = (tileID & 1 ? 0x1000 : 0x0000);
 				tileID &= ~1;
 			} else {
-				bank = &ppuRAM[(ppu.control & 0x08 ? 0x1000 : 0x0000)];
+				bank = (ppu.control & 0x08 ? 0x1000 : 0x0000);
 			}
 
-			uint8_t* bitplaneStart = bank + tileID*8*2;
+			uint16_t bitplaneStart = bank + tileID*8*2;
 			uint8_t paletteIndex = 0x10 | ((ppu.oam[i*4 + 2]&0x3) << 2);
 			if(ppu.control & 0x20) {
 				uint8_t sprite1Off = 0;
