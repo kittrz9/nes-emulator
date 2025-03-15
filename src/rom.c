@@ -119,6 +119,93 @@ uint8_t unromRead(uint16_t addr) {
 	}
 }
 
+struct {
+	uint8_t bankSelect;
+	uint8_t prgRamWriteProtect;
+	uint8_t prgRamEnable;
+	uint8_t r[8];
+} mmc3;
+
+void mmc3Write(uint16_t addr, uint8_t byte) {
+	printf("MMC3 WRITE %04X %02X\n", addr, byte);
+	switch((addr & 0xF000) >> 12) {
+		case 0x8:
+		case 0x9:
+			if(addr & 1) {
+				mmc3.r[mmc3.bankSelect&7] = byte;
+			} else {
+				mmc3.bankSelect = byte;
+			}
+			break;
+		case 0xA:
+		case 0xB:
+			if(addr & 1) {
+				mmc3.prgRamWriteProtect = (byte & 0x80) >> 7;
+				mmc3.prgRamEnable = (byte & 0x40) >> 6;
+			} else {
+				ppu.mirror = byte & 1;
+			}
+			break;
+		case 0xC:
+		case 0xD:
+			if(addr & 1) {
+				printf("IRQ LATCH WRITE\n");
+			} else {
+				printf("IRQ RESET WRITE\n");
+			}
+			break;
+		case 0xE:
+		case 0xF:
+			if(addr & 1) {
+				printf("IRQ DISABLE WRITE\n");
+			} else {
+				printf("IRQ ENABLE WRITE\n");
+			}
+			break;
+		default:
+			exit(1);
+	}
+}
+
+uint8_t mmc3Read(uint16_t addr) {
+	size_t newAddr = addr - 0x8000;
+	//printf("MMC3 READ %04X\n", addr);
+	switch((addr & 0xF000) >> 12) {
+		case 0x8:
+		case 0x9:
+			//printf("%02X %02X\n", mmc3.bankSelect, mmc3.r[6]);
+			if(mmc3.bankSelect & 0x40) {
+				return prgROM[newAddr + prgSize - 0x8000];
+			} else {
+				return prgROM[newAddr + mmc3.r[6] * 0x2000];
+			}
+			exit(1);
+		case 0xA:
+		case 0xB:
+			//printf("%02X %02X\n", mmc3.bankSelect, mmc3.r[7]);
+			newAddr -= 0x2000;
+			return prgROM[newAddr + mmc3.r[7] * 0x2000];
+			exit(1);
+		case 0xC:
+		case 0xD:
+			//printf("%02X %02X\n", mmc3.bankSelect, mmc3.r[mmc3.bankSelect&3]);
+			if(mmc3.bankSelect & 0x40) {
+				return prgROM[newAddr + mmc3.r[6] * 0x2000];
+			} else {
+				return prgROM[newAddr + prgSize - 0x8000];
+			}
+			exit(1);
+		case 0xE:
+		case 0xF:
+			//printf("%lx\n", prgSize);
+			//printf("%lX\n", newAddr + prgSize - 0x8000);
+			return prgROM[newAddr + prgSize - 0x8000];
+		default:
+			exit(1);
+	}
+}
+
+
 void setMapper(uint16_t id) {
 	switch(id) {
 		case 0x00:
@@ -134,6 +221,10 @@ void setMapper(uint16_t id) {
 		case 0x02:
 			romReadByte = unromRead;
 			romWriteByte = unromWrite;
+			break;
+		case 0x04:
+			romReadByte = mmc3Read;
+			romWriteByte = mmc3Write;
 			break;
 		default:
 			printf("unsupported mapper %02X\n", id);
