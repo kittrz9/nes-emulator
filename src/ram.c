@@ -94,21 +94,29 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			}
 			ppu.w = !ppu.w;
 			break;
-		case 0x4000:
-			pulseSetVolume(0, byte&0xF);
+		case 0x4000: 
+		case 0x4004: {
+			uint8_t pulseIndex = (addr - 0x4000) / 4;
+			pulseSetVolume(pulseIndex, byte&0xF);
+			pulseSetLoop(pulseIndex, (byte >> 5)&1);
 			break;
-		case 0x4002:
-			pulseSetTimerLow(0, byte);
+		}
+		case 0x4002: 
+		case 0x4006: {
+			uint8_t pulseIndex = (addr - 0x4000) / 4;
+			pulseSetTimerLow(pulseIndex, byte);
 			break;
+		}
 		case 0x4003:
-			pulseSetTimerHigh(0, byte&7);
+		case 0x4007: {
+			uint8_t pulseIndex = (addr - 0x4000) / 4;
+			pulseSetTimerHigh(pulseIndex, byte&7);
+			pulseSetLengthCounter(pulseIndex, byte >> 3);
 			break;
+		}
 		case 0x2002:
 		case 0x4001:
-		case 0x4004:
 		case 0x4005:
-		case 0x4006:
-		case 0x4007:
 		case 0x4008:
 		case 0x4009:
 		case 0x4010:
