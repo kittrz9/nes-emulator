@@ -7,6 +7,7 @@
 #include "rom.h"
 #include "cpu.h"
 #include "ppu.h"
+#include "apu.h"
 #include "input.h"
 
 // https://www.nesdev.org/wiki/Cycle_reference_chart
@@ -28,6 +29,8 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 	initInput();
+
+	initAPU();
 
 	cpuInit();
 
@@ -71,6 +74,7 @@ int main(int argc, char** argv) {
 		cpu.cycles = 0;
 
 		render();
+		apuLoop();
 	};
 
 	free(prgROM);

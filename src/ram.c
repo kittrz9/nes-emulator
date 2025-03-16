@@ -5,6 +5,7 @@
 
 #include "rom.h"
 #include "ppu.h"
+#include "apu.h"
 #include "input.h"
 
 uint8_t cpuRAM[0x10000];
@@ -93,11 +94,17 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			}
 			ppu.w = !ppu.w;
 			break;
-		case 0x2002:
 		case 0x4000:
-		case 0x4001:
+			pulseSetVolume(0, byte&0xF);
+			break;
 		case 0x4002:
+			pulseSetTimerLow(0, byte);
+			break;
 		case 0x4003:
+			pulseSetTimerHigh(0, byte&7);
+			break;
+		case 0x2002:
+		case 0x4001:
 		case 0x4004:
 		case 0x4005:
 		case 0x4006:
