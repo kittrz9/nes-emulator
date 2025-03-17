@@ -68,7 +68,7 @@ void pulseUpdate(uint8_t index, float* sample) {
 }
 
 void apuFrameRun(void) {
-	const int minimumAudio = (SAMPLE_RATE * sizeof(float))/2;
+	const int minimumAudio = (SAMPLE_RATE * sizeof(float))/4;
 
 	if(SDL_GetAudioStreamQueued(stream) < minimumAudio) {
 		static float samples[BUFFER_SIZE];

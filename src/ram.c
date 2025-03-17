@@ -99,6 +99,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			uint8_t pulseIndex = (addr - 0x4000) / 4;
 			pulseSetVolume(pulseIndex, byte&0xF);
 			pulseSetLoop(pulseIndex, (byte >> 5)&1);
+			pulseSetDutyCycle(pulseIndex, byte >> 6);
 			break;
 		}
 		case 0x4002: 

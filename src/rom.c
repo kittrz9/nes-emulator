@@ -118,7 +118,16 @@ uint8_t mmc1ChrRead(uint16_t addr) {
 	// probably horribly innacurate and will break for most things
 	// but this works for now
 	// I also haven't encountered an mmc1 rom that doesn't use chr ram
-	return chrROM[addr];
+	if(chrSize == 0) {
+		// chr ram
+		return chrROM[addr];
+	} else {
+		if(addr < 0x1000) {
+			return chrROM[addr + mmc1.chrBank0 * 0x1000];
+		} else {
+			return chrROM[addr - 0x1000 + mmc1.chrBank1 * 0x1000];
+		}
+	}
 }
 
 uint8_t unromBank = 0;
