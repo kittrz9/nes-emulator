@@ -4,7 +4,11 @@
 #include <stdint.h>
 
 void initAPU(void);
-void apuLoop(void);
+
+// needs a better name
+void apuFrameCheck(uint8_t cycles);
+
+void apuSetFrameCounterMode(uint8_t byte);
 
 void pulseSetVolume(uint8_t index, uint8_t volume);
 void pulseSetTimerLow(uint8_t index, uint8_t timerLow);

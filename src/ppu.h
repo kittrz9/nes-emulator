@@ -12,6 +12,11 @@
 #define MIRROR_VERTICAL 0
 #define MIRROR_HORIZONTAL 1
 
+// https://www.nesdev.org/wiki/Cycle_reference_chart
+#define CYCLES_PER_FRAME 29780
+#define CYCLES_PER_VBLANK 2273
+#define CYCLES_PER_SCANLINE 114
+
 //https://www.nesdev.org/wiki/PPU_registers
 typedef struct {
 	uint8_t control;

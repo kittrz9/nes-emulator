@@ -114,6 +114,9 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			pulseSetLengthCounter(pulseIndex, byte >> 3);
 			break;
 		}
+		case 0x4017:
+			apuSetFrameCounterMode(byte);
+			break;
 		case 0x2002:
 		case 0x4001:
 		case 0x4005:
@@ -124,7 +127,6 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x4012:
 		case 0x4013:
 		case 0x4015:
-		case 0x4017:
 			#ifdef DEBUG
 				printf("writing ppu/apu register %02X isn't implemented\n", addr);
 			#endif

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "ram.h"
+#include "apu.h"
 
 cpu_t cpu;
 
@@ -198,6 +199,10 @@ uint8_t cpuStep(void) {
 	#ifdef DEBUG
 		cpuDumpState();
 	#endif
+
+	// saving the current cycle count to get the diff
+	// and use it for the apu frame check
+	uint16_t lastCycles = cpu.cycles;
 
 	// https://www.masswerk.at/6502/6502_instruction_set.html
 	// https://www.nesdev.org/obelisk-6502-guide/reference.html
@@ -1149,6 +1154,8 @@ uint8_t cpuStep(void) {
 			#endif
 			exit(1);
 	}
+
+	apuFrameCheck(cpu.cycles - lastCycles);
 
 	return 0;
 }

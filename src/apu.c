@@ -8,19 +8,26 @@
 #include <stdlib.h>
 #include <stdlib.h>
 
+#include "ppu.h"
+
 SDL_AudioStream* stream = NULL;
 int currentSineSample = 0;
 
 #define CPU_FREQ 1789773
-#define SAMPLE_RATE 8000
-#define BUFFER_SIZE 256
+#define SAMPLE_RATE 32000
+#define BUFFER_SIZE 512
 
 struct {
-	uint8_t volume;
-	uint16_t timer;
-	uint8_t counter;
-	uint8_t loop;
-} pulse[2];
+	struct {
+		uint8_t volume;
+		uint16_t timer;
+		uint8_t counter;
+		uint8_t loop;
+	} pulse[2];
+	uint8_t frameCounter;
+	uint8_t mode;
+	uint8_t irqInhibit;
+} apu;
 
 void initAPU(void) {
 	SDL_AudioSpec spec;
@@ -42,7 +49,7 @@ void initAPU(void) {
 	SDL_ResumeAudioStreamDevice(stream);
 }
 
-void apuLoop(void) {
+void apuFrameRun(void) {
 	const int minimumAudio = (SAMPLE_RATE * sizeof(float))/2;
 
 	if(SDL_GetAudioStreamQueued(stream) < minimumAudio) {
@@ -51,15 +58,15 @@ void apuLoop(void) {
 
 		for(i = 0; i < SDL_arraysize(samples); ++i) {
 			samples[i] = 0.0f;
-			if(pulse[0].timer > 8) {
-				const int freq = CPU_FREQ / (16 * (pulse[0].timer + 1));
+			if(apu.pulse[0].counter != 0 && apu.pulse[0].timer > 8) {
+				const int freq = CPU_FREQ / (16 * (apu.pulse[0].timer + 1));
 				const float phase = currentSineSample * freq / (float)SAMPLE_RATE;
-				samples[i] += ((currentSineSample * freq) % SAMPLE_RATE < (SAMPLE_RATE/2) ? 0 : pulse[0].volume/64.0);
+				samples[i] += ((currentSineSample * freq) % SAMPLE_RATE < (SAMPLE_RATE/2) ? 0 : apu.pulse[0].volume/64.0);
 			}
-			if(pulse[1].timer > 8) {
-				const int freq = CPU_FREQ / (16 * (pulse[1].timer + 1));
+			if(apu.pulse[1].counter != 0 && apu.pulse[1].timer > 8) {
+				const int freq = CPU_FREQ / (16 * (apu.pulse[1].timer + 1));
 				const float phase = currentSineSample * freq / (float)SAMPLE_RATE;
-				samples[i] += ((currentSineSample * freq) % SAMPLE_RATE < (SAMPLE_RATE/2) ? 0 : pulse[1].volume/64.0);
+				samples[i] += ((currentSineSample * freq) % SAMPLE_RATE < (SAMPLE_RATE/2) ? 0 : apu.pulse[1].volume/64.0);
 			}
 			++currentSineSample;
 		}
@@ -68,27 +75,63 @@ void apuLoop(void) {
 
 		SDL_PutAudioStreamData(stream, samples, sizeof(samples));
 	}
+
+	if(apu.mode == 0) {
+		if(apu.frameCounter > 0 && apu.frameCounter % 2 == 0) {
+			if(!apu.pulse[0].loop && apu.pulse[0].counter != 0) {
+				--apu.pulse[0].counter;
+			}
+			if(!apu.pulse[1].loop && apu.pulse[1].counter != 0) {
+				--apu.pulse[1].counter;
+			}
+		}
+	} else {
+		if(apu.frameCounter > 0 && ((apu.frameCounter % 6) == 2 || (apu.frameCounter % 6) == 5)) {
+			if(!apu.pulse[0].loop && apu.pulse[0].counter != 0) {
+				--apu.pulse[0].counter;
+			}
+			if(!apu.pulse[1].loop && apu.pulse[1].counter != 0) {
+				--apu.pulse[1].counter;
+			}
+		}
+	}
+	++apu.frameCounter;
+}
+
+void apuFrameCheck(uint8_t cycles) {
+	static uint16_t totalCycles = 0;
+	totalCycles += cycles;
+	if(totalCycles >= (CYCLES_PER_FRAME*2)/4) {
+		totalCycles = 0;
+		apuFrameRun();
+	}
 }
 
 void pulseSetVolume(uint8_t index, uint8_t volume) {
-	pulse[index].volume = volume;
+	apu.pulse[index].volume = volume;
 }
 
 void pulseSetLoop(uint8_t index, uint8_t loop) {
-	pulse[index].loop = loop;
+	apu.pulse[index].loop = loop;
 }
 
 
 void pulseSetTimerLow(uint8_t index, uint8_t timerLow) {
-	pulse[index].timer &= 0xFF00;
-	pulse[index].timer |= timerLow;
+	apu.pulse[index].timer &= 0xFF00;
+	apu.pulse[index].timer |= timerLow;
 }
 
 void pulseSetTimerHigh(uint8_t index, uint8_t timerHigh) {
-	pulse[index].timer &= 0x00FF;
-	pulse[index].timer |= timerHigh << 8;
+	apu.pulse[index].timer &= 0x00FF;
+	apu.pulse[index].timer |= timerHigh << 8;
 }
 
 void pulseSetLengthCounter(uint8_t index, uint8_t counter) {
-	pulse[index].counter = counter;
+	apu.pulse[index].counter = counter;
+}
+
+void apuSetFrameCounterMode(uint8_t byte) {
+	apu.frameCounter = 0;
+	apu.mode = byte >> 7;
+	apu.irqInhibit = (byte >> 6) & 1;
 }

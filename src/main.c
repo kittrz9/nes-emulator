@@ -10,10 +10,6 @@
 #include "apu.h"
 #include "input.h"
 
-// https://www.nesdev.org/wiki/Cycle_reference_chart
-#define CYCLES_PER_FRAME 29780
-#define CYCLES_PER_VBLANK 2273
-#define CYCLES_PER_SCANLINE 114
 
 int main(int argc, char** argv) {
 	if(argc < 2) {
@@ -74,7 +70,6 @@ int main(int argc, char** argv) {
 		cpu.cycles = 0;
 
 		render();
-		apuLoop();
 	};
 
 	free(prgROM);
