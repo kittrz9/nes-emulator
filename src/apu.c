@@ -11,7 +11,7 @@
 #include "ppu.h"
 
 SDL_AudioStream* stream = NULL;
-int currentSineSample = 0;
+int currentSample = 0;
 
 #define CPU_FREQ 1789773
 #define SAMPLE_RATE 32000
@@ -23,6 +23,7 @@ struct {
 		uint16_t timer;
 		uint8_t counter;
 		uint8_t loop;
+		uint8_t duty;
 	} pulse[2];
 	uint8_t frameCounter;
 	uint8_t mode;
@@ -49,6 +50,23 @@ void initAPU(void) {
 	SDL_ResumeAudioStreamDevice(stream);
 }
 
+// https://www.nesdev.org/wiki/APU_Pulse
+uint8_t pulseDutyCycleLUT[] = {
+	0x40,
+	0x60,
+	0x78,
+	0x9F,
+};
+void pulseUpdate(uint8_t index, float* sample) {
+	if(apu.pulse[index].counter != 0 && apu.pulse[index].timer > 8) {
+		const int freq = CPU_FREQ / (16 * (apu.pulse[index].timer + 1));
+		uint8_t dutyCycleProgress = ((currentSample*freq) % SAMPLE_RATE)*8/SAMPLE_RATE;
+		if((pulseDutyCycleLUT[apu.pulse[index].duty] >> dutyCycleProgress) & 1) {
+			*sample += apu.pulse[index].volume/64.0;
+		}
+	}
+}
+
 void apuFrameRun(void) {
 	const int minimumAudio = (SAMPLE_RATE * sizeof(float))/2;
 
@@ -58,20 +76,12 @@ void apuFrameRun(void) {
 
 		for(i = 0; i < SDL_arraysize(samples); ++i) {
 			samples[i] = 0.0f;
-			if(apu.pulse[0].counter != 0 && apu.pulse[0].timer > 8) {
-				const int freq = CPU_FREQ / (16 * (apu.pulse[0].timer + 1));
-				const float phase = currentSineSample * freq / (float)SAMPLE_RATE;
-				samples[i] += ((currentSineSample * freq) % SAMPLE_RATE < (SAMPLE_RATE/2) ? 0 : apu.pulse[0].volume/64.0);
-			}
-			if(apu.pulse[1].counter != 0 && apu.pulse[1].timer > 8) {
-				const int freq = CPU_FREQ / (16 * (apu.pulse[1].timer + 1));
-				const float phase = currentSineSample * freq / (float)SAMPLE_RATE;
-				samples[i] += ((currentSineSample * freq) % SAMPLE_RATE < (SAMPLE_RATE/2) ? 0 : apu.pulse[1].volume/64.0);
-			}
-			++currentSineSample;
+			pulseUpdate(0, &samples[i]);
+			pulseUpdate(1, &samples[i]);
+			++currentSample;
 		}
 
-		currentSineSample %= SAMPLE_RATE;
+		currentSample %= SAMPLE_RATE;
 
 		SDL_PutAudioStreamData(stream, samples, sizeof(samples));
 	}
@@ -128,6 +138,10 @@ void pulseSetTimerHigh(uint8_t index, uint8_t timerHigh) {
 
 void pulseSetLengthCounter(uint8_t index, uint8_t counter) {
 	apu.pulse[index].counter = counter;
+}
+
+void pulseSetDutyCycle(uint8_t index, uint8_t duty) {
+	apu.pulse[index].duty = duty;
 }
 
 void apuSetFrameCounterMode(uint8_t byte) {
