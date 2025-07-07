@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include "ppu.h"
+#include "debug.h"
 
 SDL_AudioStream* stream = NULL;
 int currentSample = 0;
@@ -24,6 +25,7 @@ struct {
 		uint8_t counter;
 		uint8_t loop;
 		uint8_t duty;
+		uint8_t enabled;
 	} pulse[2];
 	uint8_t frameCounter;
 	uint8_t mode;
@@ -62,13 +64,15 @@ void pulseUpdate(uint8_t index, float* sample) {
 		const int freq = CPU_FREQ / (16 * (apu.pulse[index].timer + 1));
 		uint8_t dutyCycleProgress = ((currentSample*freq) % SAMPLE_RATE)*8/SAMPLE_RATE;
 		if((pulseDutyCycleLUT[apu.pulse[index].duty] >> dutyCycleProgress) & 1) {
-			*sample += apu.pulse[index].volume/64.0;
+			*sample += apu.pulse[index].volume/256.0;
 		}
 	}
 }
 
 void apuFrameRun(void) {
-	const int minimumAudio = (SAMPLE_RATE * sizeof(float))/4;
+	drawDebugText(0, 0, "P1: %i %i %i %i", apu.pulse[0].volume, apu.pulse[0].timer, apu.pulse[0].counter, apu.pulse[0].loop);
+	drawDebugText(0, 16, "P2: %i %i %i %i", apu.pulse[1].volume, apu.pulse[1].timer, apu.pulse[1].counter, apu.pulse[1].loop);
+	const int minimumAudio = (SAMPLE_RATE * sizeof(float))/8;
 
 	if(SDL_GetAudioStreamQueued(stream) < minimumAudio) {
 		static float samples[BUFFER_SIZE];
@@ -88,19 +92,19 @@ void apuFrameRun(void) {
 
 	if(apu.mode == 0) {
 		if(apu.frameCounter > 0 && apu.frameCounter % 2 == 0) {
-			if(!apu.pulse[0].loop && apu.pulse[0].counter != 0) {
+			if(apu.pulse[0].enabled && !apu.pulse[0].loop && apu.pulse[0].counter != 0) {
 				--apu.pulse[0].counter;
 			}
-			if(!apu.pulse[1].loop && apu.pulse[1].counter != 0) {
+			if(apu.pulse[1].enabled && !apu.pulse[1].loop && apu.pulse[1].counter != 1) {
 				--apu.pulse[1].counter;
 			}
 		}
 	} else {
 		if(apu.frameCounter > 0 && ((apu.frameCounter % 6) == 2 || (apu.frameCounter % 6) == 5)) {
-			if(!apu.pulse[0].loop && apu.pulse[0].counter != 0) {
+			if(apu.pulse[0].enabled && !apu.pulse[0].loop && apu.pulse[0].counter != 0) {
 				--apu.pulse[0].counter;
 			}
-			if(!apu.pulse[1].loop && apu.pulse[1].counter != 0) {
+			if(apu.pulse[1].enabled && !apu.pulse[1].loop && apu.pulse[1].counter != 1) {
 				--apu.pulse[1].counter;
 			}
 		}
@@ -142,6 +146,15 @@ void pulseSetLengthCounter(uint8_t index, uint8_t counter) {
 
 void pulseSetDutyCycle(uint8_t index, uint8_t duty) {
 	apu.pulse[index].duty = duty;
+}
+
+void pulseSetEnableFlag(uint8_t index, uint8_t flag) {
+	if(flag) {
+		apu.pulse[index].enabled = 1;
+	} else {
+		apu.pulse[index].enabled = 0;
+		apu.pulse[index].counter = 0;
+	}
 }
 
 void apuSetFrameCounterMode(uint8_t byte) {

@@ -10,6 +10,18 @@
 #include "apu.h"
 #include "input.h"
 
+extern struct {
+	struct {
+		uint8_t volume;
+		uint16_t timer;
+		uint8_t counter;
+		uint8_t loop;
+		uint8_t duty;
+	} pulse[2];
+	uint8_t frameCounter;
+	uint8_t mode;
+	uint8_t irqInhibit;
+} apu;
 
 int main(int argc, char** argv) {
 	if(argc < 2) {

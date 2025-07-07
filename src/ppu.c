@@ -6,6 +6,8 @@
 
 #include "rom.h"
 
+#include "debug.h"
+
 ppu_t ppu;
 
 uint8_t ppuRAM[0x4000];
@@ -115,6 +117,9 @@ uint8_t initRenderer(void) {
 	windowSurface = SDL_GetWindowSurface(w);
 	frameBuffer = SDL_CreateSurface(FB_WIDTH, FB_HEIGHT,SDL_PIXELFORMAT_RGBA8888);
 	nameTable = SDL_CreateSurface(NAMETABLE_WIDTH, NAMETABLE_HEIGHT, SDL_PIXELFORMAT_RGBA8888);
+
+		initDebugRenderer();
+
 	return 0;
 }
 
@@ -331,6 +336,8 @@ void render(void) {
 		}
 	}
 	SDL_BlitSurfaceScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT}, SDL_SCALEMODE_NEAREST);
+
+	renderDebugInfo(windowSurface);
 	SDL_UpdateWindowSurface(w);
 
 	#ifndef UNCAP_FPS

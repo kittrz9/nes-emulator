@@ -16,5 +16,6 @@ void pulseSetTimerHigh(uint8_t index, uint8_t timerHigh);
 void pulseSetLengthCounter(uint8_t index, uint8_t counter);
 void pulseSetLoop(uint8_t index, uint8_t loop);
 void pulseSetDutyCycle(uint8_t index, uint8_t duty);
+void pulseSetEnableFlag(uint8_t index, uint8_t flag);
 
 #endif // APU_H

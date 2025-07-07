@@ -4,6 +4,8 @@
 
 #include "ppu.h"
 
+#include "debug.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -12,6 +14,7 @@ controller_t controllers[2];
 uint8_t controllerLatch;
 int keyNumber;
 const uint8_t* keys;
+uint8_t* keysLastFrame;
 
 SDL_Event e;
 
@@ -28,6 +31,8 @@ uint8_t pollController(uint8_t port) {
 
 void initInput(void) {
 	keys = (const uint8_t*)SDL_GetKeyboardState(&keyNumber); 
+	keysLastFrame = malloc(sizeof(uint8_t) * keyNumber); // memory leak of like maybe 200 bytes because I don't care enough to free it lmao
+	memset(keysLastFrame, 0, sizeof(uint8_t) * keyNumber);
 }
 
 uint8_t handleInput(void) {
@@ -57,6 +62,12 @@ uint8_t handleInput(void) {
 		debugScreenshot();
 		exit(1);
 	}
+
+	if(keys[SDL_SCANCODE_D] && !keysLastFrame[SDL_SCANCODE_D]) {
+		toggleDebugInfo();
+	}
+	memcpy(keysLastFrame, keys, sizeof(uint8_t) * keyNumber);
 	SDL_PumpEvents();
+
 	return 0;
 }

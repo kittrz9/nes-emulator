@@ -127,10 +127,14 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x4011:
 		case 0x4012:
 		case 0x4013:
-		case 0x4015:
 			#ifdef DEBUG
 				printf("writing ppu/apu register %02X isn't implemented\n", addr);
 			#endif
+			break;
+		case 0x4015:
+			// will need to update the other channel's enable flags once those are implemented
+			pulseSetEnableFlag(0, byte & 1);
+			pulseSetEnableFlag(1, byte & 2);
 			break;
 		default:
 			#ifdef DEBUG
@@ -143,6 +147,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			}
 	}
 }
+
 uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
 	switch(addr) {
