@@ -28,8 +28,6 @@ void drawDebugText(uint16_t x, uint16_t y, char* fmt, ...) {
 	va_start(args, fmt);
 	char tempStr[256];
 	vsnprintf(tempStr, 256, fmt, args);
-	//printf("%s\n", tempStr);
-	uint16_t startX = x;
 	SDL_Rect charRect = {
 		.x = 0,
 		.y = 0,
@@ -47,11 +45,22 @@ void drawDebugText(uint16_t x, uint16_t y, char* fmt, ...) {
 		if(c == '\0') {
 			break;
 		}
-		charRect.x = (c - '!') * 8;
+		switch(c) {
+			case '\n':
+				destRect.x = x;
+				destRect.y += 16;
+				break;
+			case ' ':
+				destRect.x += 8;
+				break;
+			default:
+				charRect.x = (c - '!') * 8;
 
-		SDL_BlitSurface(debugFont, &charRect, debugSurface, &destRect);
+				SDL_BlitSurface(debugFont, &charRect, debugSurface, &destRect);
 
-		destRect.x += 8;
+				destRect.x += 8;
+				break;
+		}
 	}
 }
 

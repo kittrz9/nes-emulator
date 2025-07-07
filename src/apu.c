@@ -70,8 +70,7 @@ void pulseUpdate(uint8_t index, float* sample) {
 }
 
 void apuFrameRun(void) {
-	drawDebugText(0, 0, "P1: %i %i %i %i", apu.pulse[0].volume, apu.pulse[0].timer, apu.pulse[0].counter, apu.pulse[0].loop);
-	drawDebugText(0, 16, "P2: %i %i %i %i", apu.pulse[1].volume, apu.pulse[1].timer, apu.pulse[1].counter, apu.pulse[1].loop);
+	drawDebugText(0, 0, "P1: %i %i %i %i\nP2: %i %i %i %i", apu.pulse[0].volume, apu.pulse[0].timer, apu.pulse[0].counter, apu.pulse[0].loop, apu.pulse[1].volume, apu.pulse[1].timer, apu.pulse[1].counter, apu.pulse[1].loop);
 	const int minimumAudio = (SAMPLE_RATE * sizeof(float))/8;
 
 	if(SDL_GetAudioStreamQueued(stream) < minimumAudio) {
