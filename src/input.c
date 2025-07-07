@@ -3,6 +3,8 @@
 #include "SDL3/SDL.h"
 
 #include "ppu.h"
+#include "cpu.h"
+#include "ram.h"
 
 #include "debug.h"
 
@@ -66,6 +68,11 @@ uint8_t handleInput(void) {
 	if(keys[SDL_SCANCODE_D] && !keysLastFrame[SDL_SCANCODE_D]) {
 		toggleDebugInfo();
 	}
+
+	if(keys[SDL_SCANCODE_R]) {
+		cpu.pc = ADDR16(RST_VECTOR);
+	}
+
 	memcpy(keysLastFrame, keys, sizeof(uint8_t) * keyNumber);
 	SDL_PumpEvents();
 
