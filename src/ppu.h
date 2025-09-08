@@ -46,6 +46,8 @@ void uninitRenderer(void);
 
 void debugScreenshot(void);
 
+void toggleFPSCap(void);
+
 void drawPixel(uint16_t x, uint16_t y);
 void render(void);
 

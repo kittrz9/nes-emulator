@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "ppu.h"
+#include "cpu.h"
 
 uint8_t* prgROM;
 uint8_t* chrROM;
@@ -152,6 +153,12 @@ struct {
 	uint8_t prgRamWriteProtect;
 	uint8_t prgRamEnable;
 	uint8_t r[8];
+	uint8_t irqEnable;
+	uint8_t irqCounter;
+	uint8_t irqReload;
+	uint8_t irqReloadValue;
+	uint8_t ppuA12Prev;
+	uint8_t irqSignal;
 } mmc3;
 
 void mmc3Write(uint16_t addr, uint8_t byte) {
@@ -177,17 +184,24 @@ void mmc3Write(uint16_t addr, uint8_t byte) {
 		case 0xC:
 		case 0xD:
 			if(addr & 1) {
-				//printf("IRQ LATCH WRITE\n");
+				//printf("IRQ LATCH WRITE %02X\n", byte);
+				mmc3.irqReloadValue = byte;
 			} else {
 				//printf("IRQ RESET WRITE\n");
+				//mmc3.irqCounter = mmc3.irqReloadValue; // should be reset at the next ppu rising edge
+				mmc3.irqCounter = 0;
+				mmc3.irqReload = 1;
 			}
 			break;
 		case 0xE:
 		case 0xF:
 			if(addr & 1) {
 				//printf("IRQ DISABLE WRITE\n");
+				mmc3.irqEnable = 0;
+				mmc3.irqSignal = 1;
 			} else {
 				//printf("IRQ ENABLE WRITE\n");
+				mmc3.irqEnable = 1;
 			}
 			break;
 		default:
@@ -235,6 +249,25 @@ uint8_t mmc3Read(uint16_t addr) {
 
 uint8_t mmc3ChrRead(uint16_t addr) {
 	//printf("MMC3 CHR READ %04X\n", addr);
+	uint8_t a12 = (addr>>12) & 1;
+	if(mmc3.ppuA12Prev == 0 && a12 == 1) {
+		printf("%i %i %i %i %i\n", mmc3.irqCounter, mmc3.irqReload, mmc3.irqReloadValue, mmc3.irqSignal, mmc3.irqEnable);
+		if(mmc3.irqCounter == 0 || mmc3.irqReload) {
+			mmc3.irqCounter = mmc3.irqReloadValue;
+			mmc3.irqReload = 0;
+		} else {
+			--mmc3.irqCounter;
+		}
+		if(mmc3.irqCounter == 0) {
+			mmc3.irqSignal = 0;
+			printf("ASDF\n");
+		}
+		if(mmc3.irqEnable) {
+			cpu.irq = mmc3.irqSignal;
+			printf("FDSWA\n");
+		}
+	}
+	mmc3.ppuA12Prev = a12;
 	if(mmc3.bankSelect & 0x80) {
 		switch((addr >> 8) / 4) {
 			case 0: // 0-3

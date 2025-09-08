@@ -69,6 +69,15 @@ uint8_t handleInput(void) {
 		toggleDebugInfo();
 	}
 
+	if(keys[SDL_SCANCODE_F1] && !keysLastFrame[SDL_SCANCODE_F1]) {
+		cpuDumpState();
+	}
+
+	if(keys[SDL_SCANCODE_TAB] && !keysLastFrame[SDL_SCANCODE_TAB]) {
+		toggleFPSCap();
+	}
+
+
 	if(keys[SDL_SCANCODE_R]) {
 		cpu.pc = ADDR16(RST_VECTOR);
 	}

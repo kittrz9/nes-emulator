@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
 		if((ppu.control & 0x80) != 0) {
 			push((cpu.pc & 0xFF00) >> 8);
 			push(cpu.pc & 0xFF);
-			push(cpu.p & ~(B_FLAG));
+			push((cpu.p & ~(B_FLAG)) | 0x20);
 			cpu.p |= I_FLAG;
 			cpu.pc = ADDR16(NMI_VECTOR);
 		}

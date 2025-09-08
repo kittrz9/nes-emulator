@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdlib.h>
 
+#include "cpu.h"
 #include "ppu.h"
 #include "debug.h"
 
@@ -98,6 +99,9 @@ void apuFrameRun(void) {
 				--apu.pulse[1].counter;
 			}
 		}
+		if(!apu.irqInhibit && apu.frameCounter % 4 == 0) {
+			cpu.irq = 0;
+		}
 	} else {
 		if(apu.frameCounter > 0 && ((apu.frameCounter % 6) == 2 || (apu.frameCounter % 6) == 5)) {
 			if(apu.pulse[0].enabled && !apu.pulse[0].loop && apu.pulse[0].counter != 0) {
@@ -106,6 +110,9 @@ void apuFrameRun(void) {
 			if(apu.pulse[1].enabled && !apu.pulse[1].loop && apu.pulse[1].counter != 1) {
 				--apu.pulse[1].counter;
 			}
+		}
+		if(!apu.irqInhibit && apu.frameCounter % 5 == 0) {
+			cpu.irq = 0;
 		}
 	}
 	++apu.frameCounter;
@@ -160,4 +167,13 @@ void apuSetFrameCounterMode(uint8_t byte) {
 	apu.frameCounter = 0;
 	apu.mode = byte >> 7;
 	apu.irqInhibit = (byte >> 6) & 1;
+}
+uint8_t apuGetStatus(void) {
+	uint8_t status = 0;
+	status |= (apu.pulse[0].counter > 0) << 0;
+	status |= (apu.pulse[1].counter > 0) << 1;
+	// same as above for the tri channel
+	// same as above for the noise channel
+	cpu.irq = 1;
+	return status;
 }

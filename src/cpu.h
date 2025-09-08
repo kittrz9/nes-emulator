@@ -24,6 +24,7 @@ typedef struct {
 	uint16_t pc;
 	uint8_t s;
 	uint8_t p;
+	uint8_t irq;
 	uint16_t cycles;
 } cpu_t;
 
@@ -34,5 +35,7 @@ uint8_t pop(void);
 
 void cpuInit(void);
 uint8_t cpuStep(void);
+
+void cpuDumpState(void);
 
 #endif

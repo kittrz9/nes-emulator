@@ -190,10 +190,12 @@ uint8_t ramReadByte(uint16_t addr) {
 		case 0x4012:
 		case 0x4013:
 		case 0x4014:
-		case 0x4015:
 			#ifdef DEBUG
 				printf("reading ppu/apu register %02X isn't implemented\n", addr);
 			#endif
+			break;
+		case 0x4015:
+			return apuGetStatus();
 			break;
 		case 0x4016:
 			return pollController(0);

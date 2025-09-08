@@ -10,6 +10,8 @@
 
 ppu_t ppu;
 
+uint8_t fpsUncap = 0;
+
 uint8_t ppuRAM[0x4000];
 
 uint8_t nametableBank1[0x400];
@@ -340,7 +342,7 @@ void render(void) {
 	renderDebugInfo(windowSurface);
 	SDL_UpdateWindowSurface(w);
 
-	#ifndef UNCAP_FPS
+	if(!fpsUncap) {
 		static uint64_t lastTicks = 0;
 		if(lastTicks == 0) {
 			lastTicks = SDL_GetTicksNS();
@@ -350,7 +352,9 @@ void render(void) {
 			SDL_DelayNS(1000000000/60 - (currentTicks - lastTicks));
 		}
 		lastTicks = SDL_GetTicksNS();
-		// rendering is already fast enough that this should be fine
-		//SDL_Delay(1000/60);
-	#endif
+	}
+}
+
+void toggleFPSCap(void) {
+	fpsUncap = !fpsUncap;
 }

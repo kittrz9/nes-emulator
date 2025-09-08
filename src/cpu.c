@@ -46,6 +46,8 @@ void setFlag(uint8_t flag, uint8_t value) {
 void cpuInit(void) {
 	cpu.pc = ADDR16(RST_VECTOR);
 	cpu.s = 0xFD;
+	cpu.p |= I_FLAG;
+	cpu.irq = 1;
 	return;
 }
 
@@ -209,13 +211,11 @@ uint8_t cpuStep(void) {
 	switch(opcode) {
 		// BRK
 		case 0x00:
+			printf("BRK\n");
 			cpu.pc += 2;
-			// idk if the interrupt disable flag affects BRK
-			// but micro mages freezes at the start of the level if it doesn't go through if it's set
-			// so I'm assuming it doesn't
-			push(cpu.pc & 0xFF);
 			push((cpu.pc & 0xFF00) >> 8);
-			push(cpu.p | B_FLAG);
+			push(cpu.pc & 0xFF);
+			push(cpu.p | B_FLAG | 0x20);
 			cpu.p |= I_FLAG;
 			cpu.pc = ADDR16(IRQ_VECTOR);
 			cpu.cycles += 7;
@@ -1152,10 +1152,23 @@ uint8_t cpuStep(void) {
 			#ifndef DEBUG
 				cpuDumpState();
 			#endif
-			exit(1);
+			cpu.pc += 1;
+			cpu.cycles += 0;
+			//exit(1);
 	}
 
 	apuFrameCheck(cpu.cycles - lastCycles);
+
+	if(!(cpu.p & I_FLAG) && cpu.irq == 0) {
+		printf("IRQ!!! %04X\n", cpu.pc);
+		cpuDumpState();
+		push((cpu.pc & 0xFF00) >> 8);
+		push(cpu.pc & 0xFF);
+		push((cpu.p & ~(B_FLAG)) | 0x20);
+		cpu.p |= I_FLAG;
+		cpu.pc = ADDR16(IRQ_VECTOR);
+		printf("%04X\n", cpu.pc);
+	}
 
 	return 0;
 }
