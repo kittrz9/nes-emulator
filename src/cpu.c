@@ -211,7 +211,6 @@ uint8_t cpuStep(void) {
 	switch(opcode) {
 		// BRK
 		case 0x00:
-			printf("BRK\n");
 			cpu.pc += 2;
 			push((cpu.pc & 0xFF00) >> 8);
 			push(cpu.pc & 0xFF);
@@ -1157,7 +1156,13 @@ uint8_t cpuStep(void) {
 			//exit(1);
 	}
 
-	apuFrameCheck(cpu.cycles - lastCycles);
+	//apuFrameCheck(cpu.cycles - lastCycles);
+	/*if(cpu.cycles % 2 == 0) {
+		apuStep();
+	}*/
+	for(uint8_t i = 0; i < cpu.cycles - lastCycles; ++i) {
+		apuStep();
+	}
 
 	if(!(cpu.p & I_FLAG) && cpu.irq == 0) {
 		printf("IRQ!!! %04X\n", cpu.pc);

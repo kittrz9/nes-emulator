@@ -98,13 +98,23 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x4004: {
 			uint8_t pulseIndex = (addr - 0x4000) / 4;
 			pulseSetVolume(pulseIndex, byte&0xF);
-			pulseSetLoop(pulseIndex, (byte >> 5)&1);
+			pulseSetLoop(pulseIndex, byte & 0x20);
 			pulseSetDutyCycle(pulseIndex, byte >> 6);
+			pulseSetConstVolFlag(pulseIndex, byte & 0x10);
+			break;
+		}
+		case 0x4001:
+		case 0x4005: {
+			uint8_t pulseIndex = (addr - 0x4001) / 4;
+			pulseSetSweepEnable(pulseIndex, byte&0xF);
+			pulseSetSweepTimer(pulseIndex, (byte>>4) & 0xF);
+			pulseSetSweepNegate(pulseIndex, (byte>>3) & 1);
+			pulseSetSweepShift(pulseIndex, byte&0x7);
 			break;
 		}
 		case 0x4002: 
 		case 0x4006: {
-			uint8_t pulseIndex = (addr - 0x4000) / 4;
+			uint8_t pulseIndex = (addr - 0x4002) / 4;
 			pulseSetTimerLow(pulseIndex, byte);
 			break;
 		}
@@ -115,14 +125,29 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			pulseSetLengthCounter(pulseIndex, byte >> 3);
 			break;
 		}
+		case 0x4008:
+			triSetCounterReload(byte&0x7F);
+			triSetControlFlag(byte & 0x80);
+			break;
+		case 0x400A:
+			triSetTimerLow(byte);
+			break;
+		case 0x400B:
+			triSetLengthCounter(byte>>3);
+			triSetTimerHigh(byte&7);
+			triSetReloadFlag(1);
+			break;
 		case 0x4017:
 			apuSetFrameCounterMode(byte);
 			break;
+		case 0x400C:
+			noiseSetVolume(byte & 0xF);
+			noiseSetConstVolFlag(byte & 0x10);
+			noiseSetLoop(byte & 0x20);
+			break;
 		case 0x2002:
-		case 0x4001:
-		case 0x4005:
-		case 0x4008:
 		case 0x4009:
+		case 0x400D:
 		case 0x4010:
 		case 0x4011:
 		case 0x4012:
@@ -131,10 +156,23 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 				printf("writing ppu/apu register %02X isn't implemented\n", addr);
 			#endif
 			break;
+		case 0x400E:
+			noiseSetTimer(byte&0xF);
+			noiseSetMode(byte>>7);
+			break;
+		case 0x400F:
+			noiseSetLengthcounter(byte>>3);
+			break;
 		case 0x4015:
 			// will need to update the other channel's enable flags once those are implemented
 			pulseSetEnableFlag(0, byte & 1);
 			pulseSetEnableFlag(1, byte & 2);
+			if((byte & 0x4) == 0) {
+				triSetLengthCounter(0);
+			}
+			if((byte & 0x8) == 0) {
+				noiseSetLengthcounter(0);
+			}
 			break;
 		default:
 			#ifdef DEBUG

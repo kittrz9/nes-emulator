@@ -251,7 +251,6 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 	//printf("MMC3 CHR READ %04X\n", addr);
 	uint8_t a12 = (addr>>12) & 1;
 	if(mmc3.ppuA12Prev == 0 && a12 == 1) {
-		printf("%i %i %i %i %i\n", mmc3.irqCounter, mmc3.irqReload, mmc3.irqReloadValue, mmc3.irqSignal, mmc3.irqEnable);
 		if(mmc3.irqCounter == 0 || mmc3.irqReload) {
 			mmc3.irqCounter = mmc3.irqReloadValue;
 			mmc3.irqReload = 0;
@@ -260,12 +259,10 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 		}
 		if(mmc3.irqCounter == 0) {
 			mmc3.irqSignal = 0;
-			printf("ASDF\n");
 		}
-		if(mmc3.irqEnable) {
+		/*if(mmc3.irqEnable) {
 			cpu.irq = mmc3.irqSignal;
-			printf("FDSWA\n");
-		}
+		}*/
 	}
 	mmc3.ppuA12Prev = a12;
 	if(mmc3.bankSelect & 0x80) {

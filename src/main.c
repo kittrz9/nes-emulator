@@ -81,6 +81,8 @@ int main(int argc, char** argv) {
 		ppu.status &= ~(0x80);
 		cpu.cycles = 0;
 
+		apuPrintDebug();
+
 		render();
 	};
 
