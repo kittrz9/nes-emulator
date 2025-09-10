@@ -239,14 +239,14 @@ void apuStep(void) {
 			--apu.pulse[0].timer;
 		} else {
 			--apu.pulse[0].dutyCycleProgress;
-			apu.pulse[0].dutyCycleProgress &= 0x0F;
+			apu.pulse[0].dutyCycleProgress %= 8;
 			apu.pulse[0].timer = apu.pulse[0].timerPeriod;
 		}
 		if(apu.pulse[1].timer > 0) {
 			--apu.pulse[1].timer;
 		} else {
 			--apu.pulse[1].dutyCycleProgress;
-			apu.pulse[1].dutyCycleProgress &= 0x0F;
+			apu.pulse[1].dutyCycleProgress %= 8;
 			apu.pulse[1].timer = apu.pulse[1].timerPeriod;
 		}
 	}
