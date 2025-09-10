@@ -41,6 +41,7 @@ struct {
 			uint8_t timer;
 			uint8_t timerPeriod;
 			uint8_t negate;
+			uint8_t reloadFlag;
 		} sweep;
 		struct envStruct env;
 		uint8_t enabled;
@@ -107,6 +108,7 @@ uint8_t pulseDutyCycleLUT[] = {
 	0xFC,
 };
 float pulseGetSample(uint8_t index) {
+	if(apu.pulse[index].timerPeriod > 0x7FF || apu.pulse[index].timerPeriod < 8) { return 0.0f; }
 	if(apu.pulse[index].counter != 0 && apu.pulse[index].timerPeriod > 8) {
 		if((pulseDutyCycleLUT[apu.pulse[index].duty] >> apu.pulse[index].dutyCycleProgress) & 1) {
 			if(apu.pulse[index].env.constantVolFlag) {
@@ -147,33 +149,28 @@ float triGetSample(void) {
 }
 
 void updateSweeps(void) {
-	if(apu.pulse[0].sweep.enabled) {
-		if(apu.pulse[0].sweep.timer == 0) {
-			uint16_t change = apu.pulse[0].timerPeriod >> apu.pulse[0].sweep.shiftCount;
-			if(apu.pulse[0].sweep.negate) {
-				change *= -1;
-				--change;
+	for(uint8_t i = 0; i < 2; ++i) {
+		if(apu.pulse[i].sweep.enabled && apu.pulse[i].sweep.shiftCount > 0) {
+			if(apu.pulse[i].sweep.timer == 0) {
+				uint16_t change = apu.pulse[i].timerPeriod >> apu.pulse[i].sweep.shiftCount;
+				if(apu.pulse[i].sweep.negate) {
+					change *= -1;
+					if(i == 0) {
+						--change;
+					}
+				}
+				apu.pulse[i].timerPeriod += change;
+				if(apu.pulse[i].timerPeriod < 0) {
+					apu.pulse[i].timerPeriod = 0;
+				}
+				apu.pulse[i].sweep.timer = apu.pulse[i].sweep.timerPeriod;
+			} else {
+				--apu.pulse[i].sweep.timer;
 			}
-			apu.pulse[0].timerPeriod += change;
-			if(apu.pulse[0].timerPeriod < 0) {
-				apu.pulse[0].timerPeriod = 0;
+			if(apu.pulse[i].sweep.reloadFlag) {
+				apu.pulse[i].sweep.timer = apu.pulse[i].sweep.timerPeriod;
+				apu.pulse[i].sweep.reloadFlag = 0;
 			}
-		} else {
-			--apu.pulse[0].sweep.timer;
-		}
-	}
-	if(apu.pulse[1].sweep.enabled) {
-		if(apu.pulse[1].sweep.timer == 0) {
-			uint16_t change = apu.pulse[1].timerPeriod >> apu.pulse[1].sweep.shiftCount;
-			if(apu.pulse[1].sweep.negate) {
-				change *= -1;
-			}
-			apu.pulse[1].timerPeriod += change;
-			if(apu.pulse[1].timerPeriod < 0) {
-				apu.pulse[1].timerPeriod = 0;
-			}
-		} else {
-			--apu.pulse[1].sweep.timer;
 		}
 	}
 }
@@ -249,6 +246,22 @@ void apuStep(void) {
 			apu.pulse[1].dutyCycleProgress %= 8;
 			apu.pulse[1].timer = apu.pulse[1].timerPeriod;
 		}
+		if(apu.noise.timer > 0) {
+			--apu.noise.timer;
+		} else {
+			uint8_t feedback = apu.noise.lfsr & 1;
+			if(apu.noise.mode == 0) {
+				feedback ^= (apu.noise.lfsr >> 1) & 1;
+			} else {
+				feedback ^= (apu.noise.lfsr >> 6) & 1;
+			}
+			apu.noise.lfsr >>= 1;
+			apu.noise.lfsr |= feedback << 14;
+
+			++apu.noise.timerPeriod;
+			apu.noise.timerPeriod %= 8;
+			apu.noise.timer = noiseTimerLUT[apu.noise.timerPeriod];
+		}
 	}
 
 	if(apu.tri.linearCounter > 0 && apu.tri.lengthCounter > 0) {
@@ -261,22 +274,6 @@ void apuStep(void) {
 		}
 	}
 
-	if(apu.noise.timer > 0) {
-		--apu.noise.timer;
-	} else {
-		uint8_t feedback = apu.noise.lfsr & 1;
-		if(apu.noise.mode == 0) {
-			feedback ^= (apu.noise.lfsr >> 1) & 1;
-		} else {
-			feedback ^= (apu.noise.lfsr >> 6) & 1;
-		}
-		apu.noise.lfsr >>= 1;
-		apu.noise.lfsr |= feedback << 14;
-
-		++apu.noise.timerPeriod;
-		apu.noise.timerPeriod &= 0xF;
-		apu.noise.timer = noiseTimerLUT[apu.noise.timerPeriod];
-	}
 
 	++apu.cycles;
 
@@ -401,6 +398,7 @@ void pulseSetEnableFlag(uint8_t index, uint8_t flag) {
 
 void pulseSetSweepEnable(uint8_t index, uint8_t flag) {
 	apu.pulse[index].sweep.enabled = flag;
+	apu.pulse[index].sweep.reloadFlag = 1;
 }
 
 void pulseSetSweepTimer(uint8_t index, uint8_t timer) {
