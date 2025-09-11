@@ -20,11 +20,11 @@ uint8_t nametableBank2[0x400];
 SDL_Window* w;
 SDL_Surface* windowSurface;
 SDL_Surface* tile;
-SDL_Surface* nameTable;
+//SDL_Surface* nameTable;
 SDL_Surface* frameBuffer;
 
-#define NAMETABLE_WIDTH 32*8*2
-#define NAMETABLE_HEIGHT 32*8*2
+/*#define NAMETABLE_WIDTH 32*8*2
+#define NAMETABLE_HEIGHT 32*8*2*/
 
 // generated with this: https://github.com/Gumball2415/palgen-persune
 // palgen_persune.py -o test -f ".txt HTML hex"
@@ -118,7 +118,7 @@ uint8_t initRenderer(void) {
 	w = SDL_CreateWindow("nesEmu", SCREEN_WIDTH, SCREEN_HEIGHT, 0);
 	windowSurface = SDL_GetWindowSurface(w);
 	frameBuffer = SDL_CreateSurface(FB_WIDTH, FB_HEIGHT,SDL_PIXELFORMAT_RGBA8888);
-	nameTable = SDL_CreateSurface(NAMETABLE_WIDTH, NAMETABLE_HEIGHT, SDL_PIXELFORMAT_RGBA8888);
+	//nameTable = SDL_CreateSurface(NAMETABLE_WIDTH, NAMETABLE_HEIGHT, SDL_PIXELFORMAT_RGBA8888);
 
 		initDebugRenderer();
 
@@ -128,7 +128,7 @@ uint8_t initRenderer(void) {
 void uninitRenderer(void) {
 	SDL_DestroySurface(tile);
 	SDL_DestroySurface(frameBuffer);
-	SDL_DestroySurface(nameTable);
+	//SDL_DestroySurface(nameTable);
 	SDL_DestroyWindowSurface(w);
 	SDL_DestroyWindow(w);
 
@@ -136,74 +136,32 @@ void uninitRenderer(void) {
 }
 
 void debugScreenshot(void) {
-	SDL_SaveBMP(nameTable, "nametable.bmp");
+	//SDL_SaveBMP(nameTable, "nametable.bmp");
 	SDL_SaveBMP(frameBuffer, "framebuffer.bmp");
 }
 
-#define FLIP_HORIZONTAL 0x40
-#define FLIP_VERTICAL 0x80
-
-void drawTile(SDL_Surface* dst, uint16_t bitplaneStart, uint16_t x, uint16_t y, uint8_t attribs, uint8_t paletteIndex) {
-	SDL_Rect targetRect = {
-		.x = x,
-		.y = y,
-		.w = 8,
-		.h = 8,
-	};
-	SDL_Rect srcRect = {
-		.x = 0,
-		.y = 0,
-		.w = 8,
-		.h = 8,
-	};
-	uint32_t* target = (uint32_t*)tile->pixels + (attribs & FLIP_VERTICAL ? 56 : 0);
-	for(uint8_t j = 0; j < 8; ++j) {
-		uint8_t bitplane1 = chrReadByte(bitplaneStart + j);
-		uint8_t bitplane2 = chrReadByte(bitplaneStart + 8 + j);
-		uint8_t k = (attribs & FLIP_HORIZONTAL ? 0 : 7);
-		while(k < 8) {
-			uint8_t combined = ((bitplane1 >> k) & 1) | (((bitplane2 >> k) & 1) << 1);
-			uint8_t newIndex = paletteIndex | combined;
-			uint8_t* palette = &ppuRAM[0x3F00];
-			*target = paletteColors[palette[newIndex]] & (combined == 0 ? 0xFFFFFF00 : 0xFFFFFFFF);
-			++target;
-			k += (attribs & FLIP_HORIZONTAL ? 1 : -1);
-		}
-		if(attribs & FLIP_VERTICAL) {
-			target -= 16;
-		}
-	}
-	SDL_BlitSurface(tile, &srcRect, dst, &targetRect);
+uint8_t bitplaneGetPixel(uint16_t bitplaneStart, uint16_t x, uint16_t y) {
+	uint8_t bitplane1 = chrReadByte(bitplaneStart + y);
+	uint8_t bitplane2 = chrReadByte(bitplaneStart + 8 + y);
+	return ((bitplane1 >> (7-x)) & 1) | (((bitplane2 >> (7-x)) & 1) << 1);
 }
 
-/*void drawNametable(uint8_t* chrBank, uint8_t* table, uint16_t x, uint16_t y) {
-	uint8_t* attribTable = table + 0x3C0;
-	for(uint16_t i = 0; i < 960; ++i) {
-		uint8_t tileID = *(table+i);
-		uint8_t tileX = i%32;
-		uint8_t tileY = i/32;
-		uint8_t attribX = tileX/4;
-		uint8_t attribY = tileY/4;
-		uint8_t attribIndex = (attribY * 8) + attribX;
-
-		uint8_t* bitplaneStart = chrBank + tileID*8*2;
-		uint16_t xPos = ((i%32)*8 + x) % 512;
-		uint16_t yPos = ((i/32)*8 + y) % 480;
-		uint8_t shift = (tileX/2) % 2;
-		if((tileY/2)% 2 == 1) {
-			shift += 2;
-		}
-		shift *= 2;
-		uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;
-		drawTile(nameTable, bitplaneStart, xPos, yPos, 0, paletteIndex);
+uint32_t bitplaneGetColor(uint8_t combined, uint8_t paletteIndex) {
+	uint8_t newIndex = paletteIndex | combined;
+	uint8_t* palette = &ppuRAM[0x3F00];
+	if(combined == 0) {
+		return paletteColors[ppuRAM[0x3F00]];
+	} else {
+		return paletteColors[palette[newIndex]] & (combined == 0 ? paletteColors[ppuRAM[0x3F00]]: 0xFFFFFFFF);
 	}
-}*/
+}
 
 void drawPixel(uint16_t x, uint16_t y) {
+	uint32_t* target = (uint32_t*)(((uint8_t*)frameBuffer->pixels + x*sizeof(uint32_t)) + y*frameBuffer->pitch);
+	uint8_t backgroundPixel = 0;
 	// incredibly messy code
-	// should eventually also handle drawing sprites so it can set the sprite zero hit flag accurately
-	if(ppu.mask & 0x08) {
-		uint16_t bank = (ppu.control & 0x10 ? 0x1000 : 0x0000);
+	if(ppu.mask & PPU_MASK_ENABLE_BACKGROUND) {
+		uint16_t bank = (ppu.control & PPU_CTRL_BACKGROUND_TABLE ? 0x1000 : 0x0000);
 		uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
 		uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
 		uint16_t nametableX = (x + scrollX) % 512;
@@ -237,9 +195,8 @@ void drawPixel(uint16_t x, uint16_t y) {
 		uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;
 		/*uint8_t* bitplane1 = bank + tileID*8*2 + (nametableY)%8;
 		uint8_t* bitplane2 = bitplane1 + 8;*/
-		uint8_t bitplane1 = chrReadByte(bank + tileID*8*2 + nametableY%8);
+		/*uint8_t bitplane1 = chrReadByte(bank + tileID*8*2 + nametableY%8);
 		uint8_t bitplane2 = chrReadByte(bank + tileID*8*2 + nametableY%8 + 8);
-		uint32_t* target = (uint32_t*)(((uint8_t*)frameBuffer->pixels + x*sizeof(uint32_t)) + y*frameBuffer->pitch);
 		uint8_t combined = ((bitplane1 >> (7-(nametableX%8))) & 1) | (((bitplane2 >> (7-(nametableX%8))) & 1) << 1);
 		uint8_t newIndex = paletteIndex | combined;
 		uint8_t* palette = &ppuRAM[0x3F00];
@@ -247,96 +204,61 @@ void drawPixel(uint16_t x, uint16_t y) {
 			*target = paletteColors[ppuRAM[0x3F00]];
 		} else {
 			*target = paletteColors[palette[newIndex]] & (combined == 0 ? paletteColors[ppuRAM[0x3F00]]: 0xFFFFFFFF);
+		}*/
+		backgroundPixel = bitplaneGetPixel(bank + tileID*8*2, nametableX%8, nametableY%8);
+		*target = bitplaneGetColor(backgroundPixel, paletteIndex);
+	} else {
+		*target = paletteColors[ppuRAM[0x3f00]];
+	}
+	if(ppu.mask & PPU_MASK_ENABLE_SPRITES) {
+		uint8_t ySize = 8;
+		if(ppu.control & PPU_CTRL_SPRITE_SIZE) {
+			ySize = 16;
+		}
+		for(uint8_t i = 0; i < 64; ++i) {
+			uint8_t spriteX = ppu.oam[i*4 + 3];
+			uint8_t spriteY = ppu.oam[i*4 + 0];
+			uint8_t spriteAttribs = ppu.oam[i*4 + 2];
+			if(x < spriteX || x > spriteX + 7 || y < spriteY || y > spriteY + ySize - 1) {
+				   continue;
+			}
+			uint16_t bank;
+			uint8_t tileID = ppu.oam[i*4 + 1];
+			uint8_t paletteIndex = 0x10 | ((ppu.oam[i*4 + 2]&0x3) << 2);
+			if(ySize > 8) {
+				bank = (tileID & 1 ? 0x1000 : 0x0000);
+				tileID &= ~1;
+			} else {
+				bank = (ppu.control & PPU_CTRL_SPRITE_TABLE ? 0x1000 : 0x0000);
+			}
+			uint16_t bitplane = bank + tileID*8*2;
+			uint8_t xOffset = x - spriteX;
+			uint8_t yOffset = y - spriteY;
+			if(spriteAttribs & PPU_OAM_FLIP_HORIZONTAL) {
+				xOffset = 7-xOffset;
+			}
+			if(spriteAttribs & PPU_OAM_FLIP_VERTICAL) {
+				yOffset = ySize-1-yOffset;
+			}
+			if(yOffset > 7) {
+				bitplane += 16;
+			}
+			uint8_t spritePixel = bitplaneGetPixel(bitplane, xOffset%8, yOffset%8);
+			/*if(i == 0 && spritePixel != 0 && backgroundPixel != 0) {
+				ppu.status |= PPU_STATUS_SPRITE_0;
+			}*/
+			if(spriteAttribs & PPU_OAM_PRIORITY && backgroundPixel != 0) {
+				continue;
+			}
+			if(spritePixel != 0) {
+				*target = bitplaneGetColor(spritePixel, paletteIndex);
+				break;
+			}
 		}
 	}
 }
 
 void render(void) {
-	//SDL_FillSurfaceRect(nameTable, &(SDL_Rect){0,0,NAMETABLE_WIDTH,NAMETABLE_HEIGHT}, paletteColors[ppuRAM[0x3F00]]);
-
-	/*uint8_t* bank = &ppuRAM[(ppu.control & 0x10 ? 0x1000 : 0x0000)];
-	if(ppu.mirror & MIRROR_HORIZONTAL) {
-		drawNametable(bank, nametableBank1, 0, 0);
-		drawNametable(bank, nametableBank2, 256, 0);
-		drawNametable(bank, nametableBank1, 0, 240);
-		drawNametable(bank, nametableBank2, 256, 240);
-	} else {
-		drawNametable(bank, nametableBank1, 0, 0);
-		drawNametable(bank, nametableBank1, 256, 0);
-		drawNametable(bank, nametableBank2, 0, 240);
-		drawNametable(bank, nametableBank2, 256, 240);
-	}
-
-	uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
-	uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
-	SDL_Rect srcRect = {
-		.x = scrollX,
-		.y = scrollY,
-		.w = 256,
-		.h = 240,
-	};
-	SDL_Rect dstRect = {
-		.x = 0,
-		.y = 0,
-		.w = FB_WIDTH,
-		.h = FB_HEIGHT,
-	};
-	SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
-
-	// this needs to be changed when I inevitably need to deal with more complex scrolling
-	if(scrollY + 240 > 480) {
-		srcRect.y -= 480;
-		SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
-	}
-	if(scrollX + 256 > 512) {
-		srcRect.x -= 512;
-		SDL_BlitSurface(nameTable, &srcRect, frameBuffer, &dstRect);
-	}*/
-	/*for(uint16_t y = 0; y <= 240; ++y) {
-		for(uint16_t x = 0; x <= 256; ++x) {
-			drawPixel(x,y);
-		}
-	}*/
-
-	// draw sprites in OAM
-	if(ppu.mask & 0x10) {
-		for(uint8_t i = 0; i < 64; ++i) {
-			/*#ifdef DEBUG
-				SDL_Rect asdf = {
-					.x = ppu.oam[i*4 + 3],
-					.y = ppu.oam[i*4 + 0],
-					.w = 8,
-					.h = 8,
-				};
-				SDL_FillRect(frameBuffer, &asdf, 0xFFFFFF55);
-			#endif*/
-
-			uint8_t tileID = ppu.oam[i*4 + 1];
-			uint16_t bank;
-			if(ppu.control & 0x20) {
-				bank = (tileID & 1 ? 0x1000 : 0x0000);
-				tileID &= ~1;
-			} else {
-				bank = (ppu.control & 0x08 ? 0x1000 : 0x0000);
-			}
-
-			uint16_t bitplaneStart = bank + tileID*8*2;
-			uint8_t paletteIndex = 0x10 | ((ppu.oam[i*4 + 2]&0x3) << 2);
-			if(ppu.control & 0x20) {
-				uint8_t sprite1Off = 0;
-				uint8_t sprite2Off = 8;
-				if(ppu.oam[i*4 + 2] & FLIP_VERTICAL) {
-					sprite1Off = 8;
-					sprite2Off = 0;
-				}
-				drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+sprite1Off, ppu.oam[i*4 + 2], paletteIndex);
-				bitplaneStart += 16;
-				drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0]+sprite2Off, ppu.oam[i*4 + 2], paletteIndex);
-			} else {
-				drawTile(frameBuffer, bitplaneStart, ppu.oam[i*4 + 3], ppu.oam[i*4 + 0], ppu.oam[i*4 + 2], paletteIndex);
-			}
-		}
-	}
 	SDL_BlitSurfaceScaled(frameBuffer, &(SDL_Rect){0,0,FB_WIDTH,FB_HEIGHT}, windowSurface, &(SDL_Rect){0,0,SCREEN_WIDTH,SCREEN_HEIGHT}, SDL_SCALEMODE_NEAREST);
 
 	renderDebugInfo(windowSurface);

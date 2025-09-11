@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
 	while(1) {
 		if(handleInput() != 0) { break; }
 
-		ppu.status &= ~(0x40);
+		ppu.status &= ~PPU_STATUS_SPRITE_0;
 		uint16_t ppuPixel = 0;
 		uint32_t lastCycles;
 		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
@@ -58,16 +58,13 @@ int main(int argc, char** argv) {
 				}
 			}
 			if(cpu.cycles >= CYCLES_PER_SCANLINE * ppu.oam[0]) {
-				ppu.status |= 0x40;
+				ppu.status |= PPU_STATUS_SPRITE_0;
 			}
 		}
-		#ifdef DEBUG
-			printf("funny vblank\n");
-		#endif
 		cpu.cycles = 0;
-		ppu.status |= 0x80;
+		ppu.status |= PPU_STATUS_VBLANK;
 		ppu.w = 0;
-		if((ppu.control & 0x80) != 0) {
+		if((ppu.control & PPU_CTRL_ENABLE_VBLANK) != 0) {
 			push((cpu.pc & 0xFF00) >> 8);
 			push(cpu.pc & 0xFF);
 			push((cpu.p & ~(B_FLAG)) | 0x20);
@@ -78,7 +75,7 @@ int main(int argc, char** argv) {
 		while(cpu.cycles <= CYCLES_PER_VBLANK) {
 			cpuStep();
 		}
-		ppu.status &= ~(0x80);
+		ppu.status &= ~(PPU_STATUS_VBLANK);
 		cpu.cycles = 0;
 
 		apuPrintDebug();
