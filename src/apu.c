@@ -16,7 +16,7 @@ SDL_AudioStream* stream = NULL;
 
 #define CPU_FREQ 1789773
 #define SAMPLE_RATE 48000
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 
 struct envStruct {
 	uint8_t constantVolFlag;
@@ -31,6 +31,7 @@ struct {
 	struct {
 		uint16_t timer;
 		int16_t timerPeriod;
+		int16_t targetPeriod;
 		uint8_t counter;
 		uint8_t loop;
 		uint8_t duty;
@@ -45,6 +46,7 @@ struct {
 		} sweep;
 		struct envStruct env;
 		uint8_t enabled;
+		uint8_t mute;
 	} pulse[2];
 	struct {
 		uint16_t lfsr;
@@ -54,6 +56,7 @@ struct {
 		uint8_t mode;
 		uint8_t lengthCounterLoop;
 		struct envStruct env;
+		uint8_t enabled;
 	} noise;
 	struct {
 		uint16_t timer;
@@ -65,8 +68,19 @@ struct {
 		uint8_t reloadValue;
 		uint8_t controlFlag;
 		struct envStruct env;
+		uint8_t enabled;
 	} tri;
-	uint8_t frameCounter;
+	struct {
+		uint16_t sampleAddress;
+		uint16_t sampleLength;
+		uint16_t currentAddress;
+		uint8_t irqEnable;
+		uint8_t loopFlag;
+		uint8_t rateIndex;
+		uint16_t timer;
+		uint8_t sampleBuffer;
+	} dmc;
+	uint64_t frameCounter;
 	uint64_t cycles;
 	uint8_t mode;
 	uint8_t irqInhibit;
@@ -96,8 +110,6 @@ void initAPU(void) {
 	SDL_ResumeAudioStreamDevice(stream);
 
 	apu.noise.lfsr = 1;
-	// unsure what the starting value of this is supposed to be, but this makes it not start out at full volume on super mario bros
-	apu.noise.env.constantVolFlag = 1;
 }
 
 // https://www.nesdev.org/wiki/APU_Pulse
@@ -108,7 +120,7 @@ uint8_t pulseDutyCycleLUT[] = {
 	0xFC,
 };
 float pulseGetSample(uint8_t index) {
-	if(apu.pulse[index].timerPeriod > 0x7FF || apu.pulse[index].timerPeriod < 8) { return 0.0f; }
+	if(apu.pulse[index].mute) { return 0.0f; }
 	if(apu.pulse[index].counter != 0 && apu.pulse[index].timerPeriod > 8) {
 		if((pulseDutyCycleLUT[apu.pulse[index].duty] >> apu.pulse[index].dutyCycleProgress) & 1) {
 			if(apu.pulse[index].env.constantVolFlag) {
@@ -148,29 +160,21 @@ float triGetSample(void) {
 	return (triLUT[apu.tri.progress]/16.0f)/8.0f;
 }
 
+float dmcGetSample(void) {
+}
+
 void updateSweeps(void) {
 	for(uint8_t i = 0; i < 2; ++i) {
-		if(apu.pulse[i].sweep.enabled && apu.pulse[i].sweep.shiftCount > 0) {
-			if(apu.pulse[i].sweep.timer == 0) {
-				uint16_t change = apu.pulse[i].timerPeriod >> apu.pulse[i].sweep.shiftCount;
-				if(apu.pulse[i].sweep.negate) {
-					change *= -1;
-					if(i == 0) {
-						--change;
-					}
-				}
-				apu.pulse[i].timerPeriod += change;
-				if(apu.pulse[i].timerPeriod < 0) {
-					apu.pulse[i].timerPeriod = 0;
-				}
-				apu.pulse[i].sweep.timer = apu.pulse[i].sweep.timerPeriod;
-			} else {
-				--apu.pulse[i].sweep.timer;
+		if(apu.pulse[i].sweep.timer == 0 && apu.pulse[i].sweep.enabled && apu.pulse[i].sweep.shiftCount > 0) {
+			if(!apu.pulse[i].mute) {
+				apu.pulse[i].timerPeriod = apu.pulse[i].targetPeriod;
 			}
-			if(apu.pulse[i].sweep.reloadFlag) {
-				apu.pulse[i].sweep.timer = apu.pulse[i].sweep.timerPeriod;
-				apu.pulse[i].sweep.reloadFlag = 0;
-			}
+		}
+		if(apu.pulse[i].sweep.timer == 0 || apu.pulse[i].sweep.reloadFlag) {
+			apu.pulse[i].sweep.timer = apu.pulse[i].sweep.timerPeriod;
+			apu.pulse[i].sweep.reloadFlag = 0;
+		} else {
+			--apu.pulse[i].sweep.timer;
 		}
 	}
 }
@@ -182,10 +186,10 @@ void updateLengthCounters(void) {
 	if(apu.pulse[1].enabled && !apu.pulse[1].loop && apu.pulse[1].counter != 0) {
 		--apu.pulse[1].counter;
 	}
-	if(apu.noise.counter > 0) {
+	if(apu.noise.enabled && apu.noise.counter > 0) {
 		--apu.noise.counter;
 	}
-	if(!apu.tri.controlFlag && apu.tri.lengthCounter > 0) {
+	if(apu.tri.enabled && !apu.tri.controlFlag && apu.tri.lengthCounter > 0) {
 		--apu.tri.lengthCounter;
 	}
 }
@@ -231,6 +235,24 @@ void updateEnvelopes(void) {
 }
 
 void apuStep(void) {
+	for(uint8_t i = 0; i < 2; ++i) {
+		int16_t change = apu.pulse[i].timerPeriod >> apu.pulse[i].sweep.shiftCount;
+		if(apu.pulse[i].sweep.negate) {
+			change *= -1;
+			if(i == 0) {
+				--change;
+			}
+		}
+		apu.pulse[i].targetPeriod = apu.pulse[i].timerPeriod + change;
+		if(apu.pulse[i].targetPeriod < 0) {
+			apu.pulse[i].targetPeriod = 0;
+		}
+		if(apu.pulse[i].timerPeriod < 8 || apu.pulse[i].targetPeriod > 0x7FF) {
+			apu.pulse[i].mute = 1;
+		} else {
+			apu.pulse[i].mute = 0;
+		}
+	}
 	if(apu.cycles%2 == 0) {
 		if(apu.pulse[0].timer > 0) {
 			--apu.pulse[0].timer;
@@ -246,22 +268,20 @@ void apuStep(void) {
 			apu.pulse[1].dutyCycleProgress %= 8;
 			apu.pulse[1].timer = apu.pulse[1].timerPeriod;
 		}
-		if(apu.noise.timer > 0) {
-			--apu.noise.timer;
+	}
+	if(apu.noise.timer > 0) {
+		--apu.noise.timer;
+	} else {
+		uint8_t feedback = apu.noise.lfsr & 1;
+		if(apu.noise.mode == 0) {
+			feedback ^= (apu.noise.lfsr >> 1) & 1;
 		} else {
-			uint8_t feedback = apu.noise.lfsr & 1;
-			if(apu.noise.mode == 0) {
-				feedback ^= (apu.noise.lfsr >> 1) & 1;
-			} else {
-				feedback ^= (apu.noise.lfsr >> 6) & 1;
-			}
-			apu.noise.lfsr >>= 1;
-			apu.noise.lfsr |= feedback << 14;
-
-			++apu.noise.timerPeriod;
-			apu.noise.timerPeriod %= 8;
-			apu.noise.timer = noiseTimerLUT[apu.noise.timerPeriod];
+			feedback ^= (apu.noise.lfsr >> 6) & 1;
 		}
+		apu.noise.lfsr >>= 1;
+		apu.noise.lfsr |= feedback << 14;
+
+		apu.noise.timer = apu.noise.timerPeriod;
 	}
 
 	if(apu.tri.linearCounter > 0 && apu.tri.lengthCounter > 0) {
@@ -276,80 +296,56 @@ void apuStep(void) {
 
 
 	++apu.cycles;
+	++apu.frameCounter;
 
-	if(apu.mode == 0) {
-		switch(apu.cycles % (14915*2)) {
-			case 3728*2:
+	if(apu.frameCounter % (3728*2)== 0) {
+		switch(apu.frameCounter / (3728*2)) {
+			case 1:
+			case 3:
 				updateLinearCounter();
 				updateEnvelopes();
 				break;
-			case 7456*2:
+			case 2:
 				updateLinearCounter();
 				updateEnvelopes();
 				updateSweeps();
 				updateLengthCounters();
 				break;
-			case 11185*2:
-				updateLinearCounter();
-				updateEnvelopes();
-				break;
-			case 0:
-				updateLinearCounter();
-				updateEnvelopes();
-				updateSweeps();
-				updateLengthCounters();
-				if(!apu.irqInhibit) {
-					cpu.irq = 0;
+			case 4:
+				if(apu.mode == 0) {
+					updateLinearCounter();
+					updateEnvelopes();
+					updateSweeps();
+					updateLengthCounters();
+					apu.frameCounter = 0;
 				}
 				break;
-			default:
+			case 5:
+				updateLinearCounter();
+				updateEnvelopes();
+				updateSweeps();
+				updateLengthCounters();
+				apu.frameCounter = 0;
 				break;
 		}
-		apu.cycles %= (14915*2);
-	} else {
-		switch(apu.cycles % (18641*2)) {
-			case 3278*2:
-				updateLinearCounter();
-				updateEnvelopes();
-				break;
-			case 7456*2:
-				updateLinearCounter();
-				updateEnvelopes();
-				updateLengthCounters();
-				updateSweeps();
-				break;
-			case 11185*2:
-				updateLinearCounter();
-				updateEnvelopes();
-				break;
-			case 14914*2:
-				break;
-			case 0:
-				updateLinearCounter();
-				updateEnvelopes();
-				updateLengthCounters();
-				updateSweeps();
-				break;
-			default:
-				break;
-		}
-		apu.cycles %= (18641*2);
 	}
+
 
 	// need to do actual resampling at some point instead of this lmao
 	if(apu.cycles % (CPU_FREQ/SAMPLE_RATE) == 0) {
-		if(currentSample > BUFFER_SIZE) {
-			currentSample = 0;
-			if(SDL_GetAudioStreamQueued(stream) < (int)(SAMPLE_RATE * sizeof(float))/8) {
+		if(currentSample > BUFFER_SIZE-1) {
+			if(SDL_GetAudioStreamQueued(stream) < (int)(SAMPLE_RATE * sizeof(float))/32) {
 				SDL_PutAudioStreamData(stream, samples, sizeof(samples));
+				currentSample = 0;
 			}
+		} else {
+			samples[currentSample] = 0.0f;
+			samples[currentSample] += pulseGetSample(0);
+			samples[currentSample] += pulseGetSample(1);
+			samples[currentSample] += noiseGetSample();
+			samples[currentSample] += triGetSample();
+			++currentSample;
 		}
-		samples[currentSample] = 0.0f;
-		samples[currentSample] += pulseGetSample(0);
-		samples[currentSample] += pulseGetSample(1);
-		samples[currentSample] += noiseGetSample();
-		samples[currentSample] += triGetSample();
-		++currentSample;
 	}
 }
 
@@ -419,13 +415,22 @@ void pulseSetConstVolFlag(uint8_t index, uint8_t flag) {
 
 void noiseSetTimer(uint8_t timer) {
 	timer &= 0x0F;
-	apu.noise.timerPeriod = timer;
-	apu.noise.timer = noiseTimerLUT[timer];
+	apu.noise.timerPeriod = noiseTimerLUT[timer];
+	//apu.noise.timer = noiseTimerLUT[timer];
 }
 
 void noiseSetLengthcounter(uint8_t counter) {
 	apu.noise.counter = lengthCounterLUT[counter];
 	apu.noise.env.startFlag = 1;
+}
+
+void noiseSetEnableFlag(uint8_t flag) {
+	if(flag) {
+		apu.noise.enabled = 1;
+	} else {
+		apu.noise.enabled = 0;
+		apu.noise.counter = 0;
+	}
 }
 
 void noiseSetVolume(uint8_t volume) {
@@ -463,6 +468,15 @@ void triSetCounterReload(uint8_t reload) {
 	apu.tri.reloadValue = reload;
 }
 
+void triSetEnableFlag(uint8_t flag) {
+	if(flag) {
+		apu.tri.enabled = 1;
+	} else {
+		apu.tri.enabled = 0;
+		apu.tri.lengthCounter = 0;
+	}
+}
+
 void triSetReloadFlag(uint8_t flag) {
 	if(flag) {
 		apu.tri.reloadFlag = 1;
@@ -483,14 +497,20 @@ void apuSetFrameCounterMode(uint8_t byte) {
 	apu.frameCounter = 0;
 	apu.mode = byte >> 7;
 	apu.irqInhibit = (byte >> 6) & 1;
+	if(apu.mode == 1) {
+		updateLinearCounter();
+		updateEnvelopes();
+		updateSweeps();
+		updateLengthCounters();
+	}
 }
 
 uint8_t apuGetStatus(void) {
 	uint8_t status = 0;
 	status |= (apu.pulse[0].counter > 0) << 0;
 	status |= (apu.pulse[1].counter > 0) << 1;
-	// same as above for the tri channel
-	// same as above for the noise channel
+	status |= (apu.tri.lengthCounter > 0) << 2;
+	status |= (apu.noise.counter > 0) << 3;
 	cpu.irq = 1;
 	return status;
 }
@@ -504,8 +524,8 @@ P2: %i %i %i\n\
 N: %i %i %i\n\
 T: %i %i %i", 
 		apu.cycles,
-		apu.pulse[0].env.volume, apu.pulse[0].env.decayCounter, apu.pulse[0].timerPeriod, apu.pulse[0].loop,
-		apu.pulse[1].env.volume, apu.pulse[1].env.decayCounter, apu.pulse[1].timerPeriod, apu.pulse[1].loop,
+		apu.pulse[0].env.volume, apu.pulse[0].env.decayCounter, apu.pulse[0].timerPeriod,
+		apu.pulse[1].env.volume, apu.pulse[1].env.decayCounter, apu.pulse[1].timerPeriod,
 		apu.noise.counter, apu.noise.timerPeriod, apu.noise.env.decayCounter,
 		apu.tri.linearCounter, apu.tri.lengthCounter, apu.tri.timerPeriod);
 }

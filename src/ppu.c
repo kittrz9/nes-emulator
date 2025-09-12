@@ -19,12 +19,7 @@ uint8_t nametableBank2[0x400];
 
 SDL_Window* w;
 SDL_Surface* windowSurface;
-SDL_Surface* tile;
-//SDL_Surface* nameTable;
 SDL_Surface* frameBuffer;
-
-/*#define NAMETABLE_WIDTH 32*8*2
-#define NAMETABLE_HEIGHT 32*8*2*/
 
 // generated with this: https://github.com/Gumball2415/palgen-persune
 // palgen_persune.py -o test -f ".txt HTML hex"
@@ -103,32 +98,17 @@ uint8_t initRenderer(void) {
 		return 1;
 	}
 
-	//tile = SDL_CreateRGBSurface(0, 8, 16, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
-	tile = SDL_CreateSurface(8, 16, SDL_PIXELFORMAT_RGBA8888);
-	// dealing with any pitch that isn't like uint32_t aligned would be a pain
-	// since I can't just add a single byte to a uint32_t* without breaking strict aliasing
-	// (or at least I don't think I can with the methods I know in a way that isn't dumb or rewrites all of drawTile)
-	// so I'm just not dealing with pitch at all
-	if(tile->pitch != sizeof(uint32_t)*8) {
-		printf("SDL surface pitch is not just 32 bytes, not gonna deal with that for now\n");
-		SDL_DestroySurface(tile);
-		SDL_Quit();
-		return 1;
-	}
 	w = SDL_CreateWindow("nesEmu", SCREEN_WIDTH, SCREEN_HEIGHT, 0);
 	windowSurface = SDL_GetWindowSurface(w);
 	frameBuffer = SDL_CreateSurface(FB_WIDTH, FB_HEIGHT,SDL_PIXELFORMAT_RGBA8888);
-	//nameTable = SDL_CreateSurface(NAMETABLE_WIDTH, NAMETABLE_HEIGHT, SDL_PIXELFORMAT_RGBA8888);
 
-		initDebugRenderer();
+	initDebugRenderer();
 
 	return 0;
 }
 
 void uninitRenderer(void) {
-	SDL_DestroySurface(tile);
 	SDL_DestroySurface(frameBuffer);
-	//SDL_DestroySurface(nameTable);
 	SDL_DestroyWindowSurface(w);
 	SDL_DestroyWindow(w);
 
@@ -136,7 +116,6 @@ void uninitRenderer(void) {
 }
 
 void debugScreenshot(void) {
-	//SDL_SaveBMP(nameTable, "nametable.bmp");
 	SDL_SaveBMP(frameBuffer, "framebuffer.bmp");
 }
 

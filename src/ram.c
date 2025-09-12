@@ -167,12 +167,8 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			// will need to update the other channel's enable flags once those are implemented
 			pulseSetEnableFlag(0, byte & 1);
 			pulseSetEnableFlag(1, byte & 2);
-			if((byte & 0x4) == 0) {
-				triSetLengthCounter(0);
-			}
-			if((byte & 0x8) == 0) {
-				noiseSetLengthcounter(0);
-			}
+			triSetEnableFlag(byte & 4);
+			noiseSetEnableFlag(byte & 8);
 			break;
 		default:
 			#ifdef DEBUG

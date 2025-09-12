@@ -28,6 +28,7 @@ void pulseSetSweepNegate(uint8_t index, uint8_t flag);
 void pulseSetSweepShift(uint8_t index, uint8_t shift);
 void pulseSetConstVolFlag(uint8_t index, uint8_t flag);
 
+void noiseSetEnableFlag(uint8_t flag);
 void noiseSetLengthcounter(uint8_t counter);
 void noiseSetTimer(uint8_t timer);
 void noiseSetMode(uint8_t mode);
@@ -36,6 +37,7 @@ void noiseSetVolume(uint8_t volume);
 void noiseSetLoop(uint8_t flag);
 
 
+void triSetEnableFlag(uint8_t flag);
 void triSetTimerLow(uint8_t timerLow);
 void triSetTimerHigh(uint8_t timerHigh);
 void triSetLengthCounter(uint8_t counter);
