@@ -135,7 +135,7 @@ float pulseGetSample(uint8_t index) {
 
 // https://www.nesdev.org/wiki/APU_Noise
 uint16_t noiseTimerLUT[] = {
-	4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068
+	4/2, 8/2, 16/2, 32/2, 64/2, 96/2, 128/2, 160/2, 202/2, 254/2, 380/2, 508/2, 762/2, 1016/2, 2034/2, 4068/2
 };
 float noiseGetSample(void) {
 	if(apu.noise.counter > 0 && !(apu.noise.lfsr & 1)) {
@@ -268,20 +268,20 @@ void apuStep(void) {
 			apu.pulse[1].dutyCycleProgress %= 8;
 			apu.pulse[1].timer = apu.pulse[1].timerPeriod;
 		}
-	}
-	if(apu.noise.timer > 0) {
-		--apu.noise.timer;
-	} else {
-		uint8_t feedback = apu.noise.lfsr & 1;
-		if(apu.noise.mode == 0) {
-			feedback ^= (apu.noise.lfsr >> 1) & 1;
+		if(apu.noise.timer > 0) {
+			--apu.noise.timer;
 		} else {
-			feedback ^= (apu.noise.lfsr >> 6) & 1;
-		}
-		apu.noise.lfsr >>= 1;
-		apu.noise.lfsr |= feedback << 14;
+			uint8_t feedback = apu.noise.lfsr & 1;
+			if(apu.noise.mode == 0) {
+				feedback ^= (apu.noise.lfsr >> 1) & 1;
+			} else {
+				feedback ^= (apu.noise.lfsr >> 6) & 1;
+			}
+			apu.noise.lfsr >>= 1;
+			apu.noise.lfsr |= feedback << 14;
 
-		apu.noise.timer = apu.noise.timerPeriod;
+			apu.noise.timer = apu.noise.timerPeriod;
+		}
 	}
 
 	if(apu.tri.linearCounter > 0 && apu.tri.lengthCounter > 0) {
