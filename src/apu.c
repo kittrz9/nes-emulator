@@ -317,6 +317,9 @@ void apuStep(void) {
 					updateEnvelopes();
 					updateSweeps();
 					updateLengthCounters();
+					if(!apu.irqInhibit) {
+						cpu.irq = 0;
+					}
 					apu.frameCounter = 0;
 				}
 				break;
@@ -511,6 +514,8 @@ uint8_t apuGetStatus(void) {
 	status |= (apu.pulse[1].counter > 0) << 1;
 	status |= (apu.tri.lengthCounter > 0) << 2;
 	status |= (apu.noise.counter > 0) << 3;
+	// maybe dealing with the irq like this is probably a bad idea
+	// since setting the irq to 1 here would inhibit any irq that happened before
 	cpu.irq = 1;
 	return status;
 }
