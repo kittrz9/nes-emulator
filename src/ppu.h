@@ -56,7 +56,7 @@ typedef struct {
 	uint8_t oam[256];
 	uint8_t readBuffer;
 
-	uint16_t currentPixel;
+	uint32_t currentPixel;
 } ppu_t;
 
 extern ppu_t ppu;

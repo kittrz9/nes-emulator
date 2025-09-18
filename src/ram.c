@@ -39,7 +39,14 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			++ppu.oamAddr;
 			break;
 		case 0x2006:
-			*((uint8_t*)&ppu.vramAddr + (1 - ppu.w)) = byte;
+			//*((uint8_t*)&ppu.vramAddr + (1 - ppu.w)) = byte;
+			if(!ppu.w) {
+				ppu.vramAddr &= 0xFF;
+				ppu.vramAddr |= (byte & 0x3F) << 8;
+			} else {
+				ppu.vramAddr &= 0xFF00;
+				ppu.vramAddr |= byte;
+			}
 			#ifdef DEBUG
 				printf("ppu addr set to %04X\n", ppu.vramAddr);
 			#endif
@@ -190,6 +197,7 @@ uint8_t ramReadByte(uint16_t addr) {
 				// clear vblank flag after it's read
 				uint8_t tmp = ppu.status;
 				ppu.status &= ~(0x80);
+				ppu.w = 0;
 				return tmp;
 			}
 		case 0x2007: {

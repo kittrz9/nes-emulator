@@ -252,7 +252,8 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 	//uint8_t a12 = (addr>>12) & 1;
 	//if(mmc3.ppuA12Prev == 0 && a12 == 1) {
 	static uint16_t lastScanline = 0;
-	if(lastScanline != ppu.currentPixel/256) {
+	//if(lastScanline != ppu.currentPixel/340) {
+	if(ppu.currentPixel % 340 == 260) {
 		if(mmc3.irqCounter == 0 || mmc3.irqReload) {
 			mmc3.irqCounter = mmc3.irqReloadValue;
 			mmc3.irqReload = 0;
@@ -265,7 +266,7 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 		if(mmc3.irqEnable) {
 			cpu.irq &= mmc3.irqSignal;
 		}
-		lastScanline = ppu.currentPixel/256;
+		//lastScanline = ppu.currentPixel/340;
 	}
 	//mmc3.ppuA12Prev = a12;
 	if(mmc3.bankSelect & 0x80) {

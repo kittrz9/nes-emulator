@@ -5,7 +5,7 @@ set -xe
 SDL_VERSION="3.2.8"
 
 if [ "$DEBUG" ]; then
-	DEFINES="-DDEBUG -DUNCAP_FPS"
+	#DEFINES="-DDEBUG -DUNCAP_FPS"
 	CFLAGS="-g -fsanitize=address"
 	LDFLAGS="-g -fsanitize=address"
 fi

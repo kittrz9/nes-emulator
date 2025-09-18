@@ -1173,8 +1173,8 @@ uint8_t cpuStep(void) {
 		cpu.p |= I_FLAG;
 		cpu.pc = ADDR16(IRQ_VECTOR);
 		//printf("%04X\n", cpu.pc);
+		cpu.irq = 1;
 	}
-	cpu.irq = 1;
 
 	return 0;
 }
