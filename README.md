@@ -1,12 +1,22 @@
 # NES emulator
 a simple NES emulator written in C<br>
 <br>
-it only has support for NROM, MMC1, and UNROM games, and has a lot of stuff that is unimplemented and buggy<br>
+the only currently implemented mappers are NROM, MMC1, UNROM, and MMC3, and MMC3 scanline stuff isn't fully implemented yet.<br>
 <br>
-it's also only been tested with a few games. galaga, tetris, dr. mario, metroid, and megaman seem to work fine but super mario bros doesn't scroll right, micro mages runs but the sprites are broken, and megaman 2 runs but has the nametable get corrupted<br>
+the controls are defined in `src/input.c`, currently they are set to be<br>
+`A - Z`<br>
+`B - X`<br>
+`DPad - Arrow Keys`<br>
+`Start - Enter`<br>
+`Select - Right Shift`<br>
+<br>
+## currently known issues
+ - smb1 has issues with the hud scrolling due to innacurate sprite 0 hit stuff
+ - basically any MMC3 game that uses its scanline counter is broken
+ - the pulse channel's sweep unit stuff (the stuff that makes the notes slide) is slightly broken, most noticable when going through a pipe or taking damage in smb1
 <br>
 
 ## building
-to build it all you should need to do is run `./build.sh` in this directory. it will download a version of SDL2 and compile that and then compile the emulator with it.<br>
+to build it all you should need to do is run `./build.sh` in this directory. it will download a version of SDL3 and compile that and then compile the emulator with it.<br>
 <br>
 there is no windows support and probably never will be.<br>
