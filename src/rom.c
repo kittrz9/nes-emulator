@@ -184,24 +184,24 @@ void mmc3Write(uint16_t addr, uint8_t byte) {
 		case 0xC:
 		case 0xD:
 			if(addr & 1) {
-				//printf("IRQ LATCH WRITE %02X\n", byte);
-				mmc3.irqReloadValue = byte;
-			} else {
 				//printf("IRQ RESET WRITE\n");
 				//mmc3.irqCounter = mmc3.irqReloadValue; // should be reset at the next ppu rising edge
 				mmc3.irqCounter = 0;
 				mmc3.irqReload = 1;
+			} else {
+				//printf("IRQ LATCH WRITE %02X\n", byte);
+				mmc3.irqReloadValue = byte;
 			}
 			break;
 		case 0xE:
 		case 0xF:
 			if(addr & 1) {
+				//printf("IRQ ENABLE WRITE\n");
+				mmc3.irqEnable = 1;
+			} else {
 				//printf("IRQ DISABLE WRITE\n");
 				mmc3.irqEnable = 0;
 				mmc3.irqSignal = 1;
-			} else {
-				//printf("IRQ ENABLE WRITE\n");
-				mmc3.irqEnable = 1;
 			}
 			break;
 		default:
@@ -249,8 +249,10 @@ uint8_t mmc3Read(uint16_t addr) {
 
 uint8_t mmc3ChrRead(uint16_t addr) {
 	//printf("MMC3 CHR READ %04X\n", addr);
-	uint8_t a12 = (addr>>12) & 1;
-	if(mmc3.ppuA12Prev == 0 && a12 == 1) {
+	//uint8_t a12 = (addr>>12) & 1;
+	//if(mmc3.ppuA12Prev == 0 && a12 == 1) {
+	static uint16_t lastScanline = 0;
+	if(lastScanline != ppu.currentPixel/256) {
 		if(mmc3.irqCounter == 0 || mmc3.irqReload) {
 			mmc3.irqCounter = mmc3.irqReloadValue;
 			mmc3.irqReload = 0;
@@ -260,11 +262,12 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 		if(mmc3.irqCounter == 0) {
 			mmc3.irqSignal = 0;
 		}
-		/*if(mmc3.irqEnable) {
-			cpu.irq = mmc3.irqSignal;
-		}*/
+		if(mmc3.irqEnable) {
+			cpu.irq &= mmc3.irqSignal;
+		}
+		lastScanline = ppu.currentPixel/256;
 	}
-	mmc3.ppuA12Prev = a12;
+	//mmc3.ppuA12Prev = a12;
 	if(mmc3.bankSelect & 0x80) {
 		switch((addr >> 8) / 4) {
 			case 0: // 0-3

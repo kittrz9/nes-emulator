@@ -1165,15 +1165,16 @@ uint8_t cpuStep(void) {
 	}
 
 	if(!(cpu.p & I_FLAG) && cpu.irq == 0) {
-		printf("IRQ!!! %04X\n", cpu.pc);
-		cpuDumpState();
+		//printf("IRQ!!! %04X\n", cpu.pc);
+		//cpuDumpState();
 		push((cpu.pc & 0xFF00) >> 8);
 		push(cpu.pc & 0xFF);
 		push((cpu.p & ~(B_FLAG)) | 0x20);
 		cpu.p |= I_FLAG;
 		cpu.pc = ADDR16(IRQ_VECTOR);
-		printf("%04X\n", cpu.pc);
+		//printf("%04X\n", cpu.pc);
 	}
+	cpu.irq = 1;
 
 	return 0;
 }

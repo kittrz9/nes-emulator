@@ -46,15 +46,15 @@ int main(int argc, char** argv) {
 		if(handleInput() != 0) { break; }
 
 		ppu.status &= ~PPU_STATUS_SPRITE_0;
-		uint16_t ppuPixel = 0;
 		uint32_t lastCycles;
+		ppu.currentPixel = 0;
 		while(cpu.cycles <= CYCLES_PER_FRAME - CYCLES_PER_VBLANK) {
 			lastCycles = cpu.cycles;
 			cpuStep();
-			for(uint8_t i = 0; ppuPixel < 256*240 && i < cpu.cycles - lastCycles; ++i) {
+			for(uint8_t i = 0; ppu.currentPixel < 256*240 && i < cpu.cycles - lastCycles; ++i) {
 				for(uint8_t j = 0; j < 3; ++j) {
-					drawPixel(ppuPixel % 256, ppuPixel / 256);
-					++ppuPixel;
+					drawPixel(ppu.currentPixel % 256, ppu.currentPixel / 256);
+					++ppu.currentPixel;
 				}
 			}
 			if(cpu.cycles >= CYCLES_PER_SCANLINE * ppu.oam[0]) {
