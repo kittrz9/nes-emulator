@@ -1160,9 +1160,6 @@ uint8_t cpuStep(void) {
 	/*if(cpu.cycles % 2 == 0) {
 		apuStep();
 	}*/
-	for(uint8_t i = 0; i < cpu.cycles - lastCycles; ++i) {
-		apuStep();
-	}
 
 	if(!(cpu.p & I_FLAG) && cpu.irq == 0) {
 		//printf("IRQ!!! %04X\n", cpu.pc);

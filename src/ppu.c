@@ -135,11 +135,40 @@ uint32_t bitplaneGetColor(uint8_t combined, uint8_t paletteIndex) {
 	}
 }
 
+uint8_t secondaryOAM[4*8];
+uint8_t secondaryOAMIndex;
+uint8_t spriteZeroIndex;
+
 void drawPixel(uint16_t x, uint16_t y) {
+	uint8_t ySize = 8;
+	if(ppu.control & PPU_CTRL_SPRITE_SIZE) {
+		ySize = 16;
+	}
+	if(x == 0) {
+		spriteZeroIndex = 9;
+		// https://www.nesdev.org/wiki/PPU_sprite_evaluation
+		memset(secondaryOAM, 0xFF, sizeof(secondaryOAM));
+		secondaryOAMIndex = 0;
+		for(uint8_t i = 0; i < 64; ++i) {
+			uint8_t spriteY = ppu.oam[i*4 + 0] + 1;
+			uint8_t spriteX = ppu.oam[i*4 + 3];
+			if(y >= spriteY && y < spriteY + ySize) {
+				// not accurately evaluating the sprite overflow stuff
+				if(secondaryOAMIndex == 8) {
+					ppu.status |= PPU_STATUS_SPRITE_OVERFLOW;
+					break;
+				} else {
+					if(i == 0) { spriteZeroIndex = secondaryOAMIndex; }
+					memcpy(&secondaryOAM[secondaryOAMIndex*4], &ppu.oam[i*4], 4);
+					++secondaryOAMIndex;
+				}
+			}
+		}
+	}
 	uint32_t* target = (uint32_t*)(((uint8_t*)frameBuffer->pixels + x*sizeof(uint32_t)) + y*frameBuffer->pitch);
 	uint8_t backgroundPixel = 0;
 	// incredibly messy code
-	if(ppu.mask & PPU_MASK_ENABLE_BACKGROUND) {
+	if(ppu.mask & PPU_MASK_ENABLE_BACKGROUND && !((ppu.mask & PPU_MASK_LEFT_BACKGROUND) == 0 && x < 8)) {
 		uint16_t bank = (ppu.control & PPU_CTRL_BACKGROUND_TABLE ? 0x1000 : 0x0000);
 		uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
 		uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
@@ -148,15 +177,15 @@ void drawPixel(uint16_t x, uint16_t y) {
 		uint8_t* table;
 		if(ppu.mirror & MIRROR_HORIZONTAL) {
 			if(nametableX >= 256) {
-				table = nametableBank2;
+				table = &ppuRAM[0x2400];
 			} else {
-				table = nametableBank1;
+				table = &ppuRAM[0x2000];
 			}
 		} else {
 			if(nametableY >= 240) {
-				table = nametableBank2;
+				table = &ppuRAM[0x2800];
 			} else {
-				table = nametableBank1;
+				table = &ppuRAM[0x2000];
 			}
 		}
 		uint8_t* attribTable = table + 0x3C0;
@@ -189,21 +218,17 @@ void drawPixel(uint16_t x, uint16_t y) {
 	} else {
 		*target = paletteColors[ppuRAM[0x3f00]];
 	}
-	if(ppu.mask & PPU_MASK_ENABLE_SPRITES) {
-		uint8_t ySize = 8;
-		if(ppu.control & PPU_CTRL_SPRITE_SIZE) {
-			ySize = 16;
-		}
-		for(uint8_t i = 0; i < 64; ++i) {
-			uint8_t spriteX = ppu.oam[i*4 + 3];
-			uint8_t spriteY = ppu.oam[i*4 + 0];
-			uint8_t spriteAttribs = ppu.oam[i*4 + 2];
+	if(ppu.mask & PPU_MASK_ENABLE_SPRITES && !((ppu.mask & PPU_MASK_LEFT_SPRITES) == 0 && x < 8)) {
+		for(uint8_t i = 0; i < 8; ++i) {
+			uint8_t spriteX = secondaryOAM[i*4 + 3];
+			uint8_t spriteY = secondaryOAM[i*4 + 0] + 1;
+			uint8_t spriteAttribs = secondaryOAM[i*4 + 2];
 			if(x < spriteX || x > spriteX + 7 || y < spriteY || y > spriteY + ySize - 1) {
 				   continue;
 			}
 			uint16_t bank;
-			uint8_t tileID = ppu.oam[i*4 + 1];
-			uint8_t paletteIndex = 0x10 | ((ppu.oam[i*4 + 2]&0x3) << 2);
+			uint8_t tileID = secondaryOAM[i*4 + 1];
+			uint8_t paletteIndex = 0x10 | ((secondaryOAM[i*4 + 2]&0x3) << 2);
 			if(ySize > 8) {
 				bank = (tileID & 1 ? 0x1000 : 0x0000);
 				tileID &= ~1;
@@ -223,9 +248,10 @@ void drawPixel(uint16_t x, uint16_t y) {
 				bitplane += 16;
 			}
 			uint8_t spritePixel = bitplaneGetPixel(bitplane, xOffset%8, yOffset%8);
-			/*if(i == 0 && spritePixel != 0 && backgroundPixel != 0) {
+			if(x < 255 && (ppu.status & PPU_STATUS_SPRITE_0) == 0 && i == spriteZeroIndex && spritePixel != 0 && backgroundPixel != 0) {
+				//printf("sprite 0\n");
 				ppu.status |= PPU_STATUS_SPRITE_0;
-			}*/
+			}
 			if(spriteAttribs & PPU_OAM_PRIORITY && backgroundPixel != 0) {
 				continue;
 			}

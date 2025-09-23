@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "cpu.h"
 #include "rom.h"
 #include "ppu.h"
 #include "apu.h"
@@ -26,6 +27,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 	addr = addrMap(addr);
 	switch(addr) {
 		case 0x2000:
+			//printf("%04X %i %02X\n", cpu.pc, ppu.currentPixel / 340, byte);
 			ppu.control = byte;
 			break;
 		case 0x2001:
@@ -63,17 +65,13 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			}
 			if(ppu.vramAddr >= 0x2000 && ppu.vramAddr <= 0x3000) {
 				if(ppu.mirror & MIRROR_HORIZONTAL) {
-					if(ppu.vramAddr & 0x400) {
-						nametableBank2[(ppu.vramAddr - 0x2400) & ~(0x800)] = byte;
-					} else {
-						nametableBank1[(ppu.vramAddr - 0x2000) & ~(0x800)] = byte;
-					}
+					//printf("H%04X %04X\n", ppu.vramAddr | 0x800, ppu.vramAddr & ~(0x800));
+					ppuRAM[ppu.vramAddr | 0x800] = byte;
+					ppuRAM[ppu.vramAddr & ~(0x800)] = byte;
 				} else {
-					if(ppu.vramAddr & 0x800) {
-						nametableBank2[(ppu.vramAddr - 0x2800) & ~(0x400)] = byte;
-					} else {
-						nametableBank1[(ppu.vramAddr - 0x2000) & ~(0x400)] = byte;
-					}
+					//printf("V%04X %04X\n", ppu.vramAddr | 0x400, ppu.vramAddr & ~(0x400));
+					ppuRAM[ppu.vramAddr | 0x400] = byte;
+					ppuRAM[ppu.vramAddr & ~(0x400)] = byte;
 				}
 			}
 			// https://www.nesdev.org/wiki/PPU_palettes#Memory_Map
@@ -95,6 +93,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			break;
 		case 0x2005:
 			if(!ppu.w) {
+				//printf("SCROLLX %02X\n", byte);
 				ppu.scrollX = byte;
 			} else {
 				ppu.scrollY = byte;
