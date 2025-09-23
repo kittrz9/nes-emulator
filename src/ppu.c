@@ -5,6 +5,10 @@
 #include <stdio.h>
 
 #include "rom.h"
+#include "ram.h"
+#include "cpu.h"
+#include "input.h"
+#include "apu.h"
 
 #include "debug.h"
 
@@ -151,7 +155,6 @@ void drawPixel(uint16_t x, uint16_t y) {
 		secondaryOAMIndex = 0;
 		for(uint8_t i = 0; i < 64; ++i) {
 			uint8_t spriteY = ppu.oam[i*4 + 0] + 1;
-			uint8_t spriteX = ppu.oam[i*4 + 3];
 			if(y >= spriteY && y < spriteY + ySize) {
 				// not accurately evaluating the sprite overflow stuff
 				if(secondaryOAMIndex == 8) {
@@ -261,6 +264,50 @@ void drawPixel(uint16_t x, uint16_t y) {
 			}
 		}
 	}
+}
+
+void ppuStep(void) {
+	uint16_t x = ppu.currentPixel % 340;
+	uint16_t y = ppu.currentPixel / 340;
+	if(x == 0) {
+		switch(y) {
+			case 240:
+				ppu.status |= PPU_STATUS_VBLANK;
+				if(ppu.control & PPU_CTRL_ENABLE_VBLANK) {
+					push((cpu.pc & 0xFF00) >> 8);
+					push(cpu.pc & 0xFF);
+					push((cpu.p & ~(B_FLAG)) | 0x20);
+					cpu.p |= I_FLAG;
+					cpu.pc = ADDR16(NMI_VECTOR);
+				}
+				apuPrintDebug();
+				render();
+				break;
+			case 261:
+				ppu.status &= ~PPU_STATUS_SPRITE_0;
+				ppu.currentPixel = 0;
+				ppu.status &= ~(PPU_STATUS_VBLANK);
+				return;
+			default:
+				break;
+		}
+	}
+	if(x < 256 && y < 240) {
+		drawPixel(ppu.currentPixel % 340, ppu.currentPixel / 340);
+	} else {
+		// hblank
+		// janky way to get the mmc3 stuff to trigger
+		chrReadByte(0);
+	}
+
+	// sprite 0 jank since smb1 still breaks
+	// it's probably something wrong with how scrolling is handled since it's happening once the x scroll part of the control register gets set
+	// I'm not sure what exactly is wrong though, it should be setting it to 0 before rendering starts
+	if((ppu.status & PPU_STATUS_SPRITE_0) == 0 && ppu.currentPixel == (ppu.oam[0]+8)*340 + ppu.oam[3]) {
+		ppu.status |= PPU_STATUS_SPRITE_0;
+	}
+
+	++ppu.currentPixel;
 }
 
 void render(void) {
