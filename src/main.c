@@ -32,9 +32,10 @@ int main(int argc, char** argv) {
 	uint8_t running = 1;
 
 	while(running) {
-		uint64_t lastCycles = cpu.cycles;
+		//uint64_t lastCycles = cpu.cycles;
 		cpuStep();
-		for(uint8_t i = 0; i < cpu.cycles - lastCycles; ++i) {
+		//printf("%i %i\n", cpu.cycles, lastCycles);
+		for(uint8_t i = 0; i < cpu.cycles; ++i) {
 			apuStep();
 			for(uint8_t j = 0; j < 3; ++j) {
 				if(ppu.currentPixel == 0) {
@@ -43,6 +44,7 @@ int main(int argc, char** argv) {
 				ppuStep();
 			}
 		}
+		cpu.cycles = 0;
 	};
 
 	free(prgROM);
