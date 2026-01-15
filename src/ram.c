@@ -154,13 +154,23 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x2002:
 		case 0x4009:
 		case 0x400D:
-		case 0x4010:
-		case 0x4011:
-		case 0x4012:
-		case 0x4013:
 			#ifdef DEBUG
 				printf("writing ppu/apu register %02X isn't implemented\n", addr);
 			#endif
+			break;
+		case 0x4010:
+			dmcSetIrqEnable(byte >> 7);
+			dmcSetLoop((byte >> 6) & 1);
+			dmcSetRate(byte & 0xF);
+			break;
+		case 0x4011:
+			dmcDirectLoad(byte & 0x7F);
+			break;
+		case 0x4012:
+			dmcSetSampleAddress(byte);
+			break;
+		case 0x4013:
+			dmcSetSampleLength(byte);
 			break;
 		case 0x400E:
 			noiseSetTimer(byte&0xF);

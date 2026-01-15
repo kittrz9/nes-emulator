@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include "cpu.h"
+#include "ram.h"
 #include "ppu.h"
 #include "debug.h"
 
@@ -73,12 +74,16 @@ struct {
 	struct {
 		uint16_t sampleAddress;
 		uint16_t sampleLength;
+		uint16_t bytesRemaining;
 		uint16_t currentAddress;
 		uint8_t irqEnable;
 		uint8_t loopFlag;
-		uint8_t rateIndex;
+		uint16_t rate;
 		uint16_t timer;
 		uint8_t sampleBuffer;
+		uint8_t sampleBitsLeft;
+		uint8_t output;
+		uint8_t silence;
 	} dmc;
 	uint64_t frameCounter;
 	uint64_t cycles;
@@ -161,6 +166,7 @@ float triGetSample(void) {
 }
 
 float dmcGetSample(void) {
+	return apu.dmc.output/256.0;
 }
 
 void updateSweeps(void) {
@@ -282,6 +288,47 @@ void apuStep(void) {
 
 			apu.noise.timer = apu.noise.timerPeriod;
 		}
+		if(apu.dmc.timer > 0) {
+			--apu.dmc.timer;
+		} else {
+			// memory reader
+			if(apu.dmc.sampleBitsLeft == 0) {
+				if(apu.dmc.bytesRemaining > 0) {
+					apu.dmc.sampleBuffer = ramReadByte(apu.dmc.currentAddress);
+					++apu.dmc.currentAddress;
+					--apu.dmc.bytesRemaining;
+					apu.dmc.sampleBitsLeft = 8;
+					apu.dmc.silence = 0;
+					if(apu.dmc.bytesRemaining == 0) {
+						if(apu.dmc.loopFlag) {
+							apu.dmc.currentAddress = apu.dmc.sampleAddress;
+							apu.dmc.bytesRemaining = apu.dmc.sampleLength;
+						} else if(apu.dmc.irqEnable) {
+							cpu.irq = 0;
+						}
+					}
+				} else {
+					apu.dmc.silence = 1;
+				}
+			}
+			// output unit
+			if(!apu.dmc.silence) {
+				--apu.dmc.sampleBitsLeft;
+				uint8_t delta = apu.dmc.sampleBuffer & 1;
+				apu.dmc.sampleBuffer >>= 1;
+				if(delta == 1) {
+					if(apu.dmc.output < 126) {
+						apu.dmc.output += 2;
+					}
+				} else {
+					if(apu.dmc.output > 1) {
+						apu.dmc.output -= 2;
+					}
+				}
+			}
+
+			apu.dmc.timer = apu.dmc.rate;
+		}
 	}
 
 	if(apu.tri.linearCounter > 0 && apu.tri.lengthCounter > 0) {
@@ -347,6 +394,7 @@ void apuStep(void) {
 			samples[currentSample] += pulseGetSample(1);
 			samples[currentSample] += noiseGetSample();
 			samples[currentSample] += triGetSample();
+			samples[currentSample] += dmcGetSample();
 			++currentSample;
 		}
 	}
@@ -514,6 +562,7 @@ uint8_t apuGetStatus(void) {
 	status |= (apu.pulse[1].counter > 0) << 1;
 	status |= (apu.tri.lengthCounter > 0) << 2;
 	status |= (apu.noise.counter > 0) << 3;
+	status |= (apu.dmc.bytesRemaining > 0 && !apu.dmc.silence) << 4;
 	// maybe dealing with the irq like this is probably a bad idea
 	// since setting the irq to 1 here would inhibit any irq that happened before
 	cpu.irq = 1;
@@ -533,4 +582,33 @@ T: %i %i %i",
 		apu.pulse[1].env.volume, apu.pulse[1].env.decayCounter, apu.pulse[1].timerPeriod,
 		apu.noise.counter, apu.noise.timerPeriod, apu.noise.env.decayCounter,
 		apu.tri.linearCounter, apu.tri.lengthCounter, apu.tri.timerPeriod);
+}
+
+
+void dmcSetIrqEnable(uint8_t flag) {
+	apu.dmc.irqEnable = flag;
+}
+
+void dmcSetLoop(uint8_t loop) {
+	apu.dmc.loopFlag = loop;
+}
+
+// https://www.nesdev.org/wiki/APU_DMC
+uint16_t ratesTable[] = {428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106,  84,  72,  54};
+void dmcSetRate(uint8_t rate) {
+	apu.dmc.rate = ratesTable[rate]/2;
+}
+
+void dmcDirectLoad(uint8_t value) {
+	apu.dmc.output = value;
+}
+
+void dmcSetSampleAddress(uint8_t address) {
+	apu.dmc.sampleAddress = 0xC000 + address*64;
+	apu.dmc.currentAddress = apu.dmc.sampleAddress;
+}
+
+void dmcSetSampleLength(uint8_t length) {
+	apu.dmc.sampleLength = length*16 + 1;
+	apu.dmc.bytesRemaining = apu.dmc.sampleLength;
 }

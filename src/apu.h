@@ -47,4 +47,11 @@ void triSetControlFlag(uint8_t flag);
 
 void apuPrintDebug(void);
 
+void dmcSetIrqEnable(uint8_t flag);
+void dmcSetLoop(uint8_t loop);
+void dmcSetRate(uint8_t rate);
+void dmcDirectLoad(uint8_t value);
+void dmcSetSampleAddress(uint8_t address);
+void dmcSetSampleLength(uint8_t length);
+
 #endif // APU_H
