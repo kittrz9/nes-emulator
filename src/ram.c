@@ -112,10 +112,10 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x4001:
 		case 0x4005: {
 			uint8_t pulseIndex = (addr - 0x4001) / 4;
-			pulseSetSweepEnable(pulseIndex, byte&0xF);
+			pulseSetSweepEnable(pulseIndex, byte >> 7);
 			pulseSetSweepTimer(pulseIndex, (byte>>4) & 0x7);
 			pulseSetSweepNegate(pulseIndex, (byte>>3) & 1);
-			pulseSetSweepShift(pulseIndex, byte&0x7);
+			pulseSetSweepShift(pulseIndex, byte & 0x7);
 			break;
 		}
 		case 0x4002: 
