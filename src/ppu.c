@@ -292,6 +292,9 @@ void ppuStep(void) {
 				break;
 		}
 	}
+	if(x == 260) {
+		scanlineCounter();
+	}
 	if(x < 256 && y < 240) {
 		drawPixel(ppu.currentPixel % 340, ppu.currentPixel / 340);
 	} else {

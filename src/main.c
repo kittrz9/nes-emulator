@@ -36,6 +36,7 @@ int main(int argc, char** argv) {
 		cpuStep();
 		//printf("%i %i\n", cpu.cycles, lastCycles);
 		for(uint8_t i = 0; i < cpu.cycles; ++i) {
+			cycleCounter();
 			apuStep();
 			for(uint8_t j = 0; j < 3; ++j) {
 				if(ppu.currentPixel == 0) {

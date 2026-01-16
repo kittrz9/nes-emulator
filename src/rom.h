@@ -19,4 +19,7 @@ extern uint8_t (*romReadByte)(uint16_t addr);
 extern void (*chrWriteByte)(uint16_t addr, uint8_t byte);
 extern uint8_t (*chrReadByte)(uint16_t addr);
 
+extern void (*scanlineCounter)(void);
+extern void (*cycleCounter)(void);
+
 #endif

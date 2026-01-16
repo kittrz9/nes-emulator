@@ -21,6 +21,11 @@ uint8_t (*romReadByte)(uint16_t addr);
 void (*chrWriteByte)(uint16_t addr, uint8_t byte);
 uint8_t (*chrReadByte)(uint16_t addr);
 
+void (*scanlineCounter)(void);
+void (*cycleCounter)(void);
+
+void noCounter(void) { return; }
+
 uint8_t chrReadNormal(uint16_t addr) {
 	return chrROM[addr];
 }
@@ -253,23 +258,6 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 	//printf("MMC3 CHR READ %04X\n", addr);
 	//uint8_t a12 = (addr>>12) & 1;
 	//if(mmc3.ppuA12Prev == 0 && a12 == 1) {
-	static uint16_t lastScanline = 0;
-	//if(lastScanline != ppu.currentPixel/340) {
-	if(ppu.currentPixel % 340 == 260) {
-		if(mmc3.irqCounter == 0 || mmc3.irqReload) {
-			mmc3.irqCounter = mmc3.irqReloadValue;
-			mmc3.irqReload = 0;
-		} else {
-			--mmc3.irqCounter;
-		}
-		if(mmc3.irqCounter == 0) {
-			mmc3.irqSignal = 0;
-		}
-		if(mmc3.irqEnable) {
-			cpu.irq &= mmc3.irqSignal;
-		}
-		//lastScanline = ppu.currentPixel/340;
-	}
 	//mmc3.ppuA12Prev = a12;
 	if(mmc3.bankSelect & 0x80) {
 		switch((addr >> 8) / 4) {
@@ -314,6 +302,21 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 	}
 }
 
+void mmc3ScanlineCounter(void) {
+	if(mmc3.irqCounter == 0 || mmc3.irqReload) {
+		mmc3.irqCounter = mmc3.irqReloadValue;
+		mmc3.irqReload = 0;
+	} else {
+		--mmc3.irqCounter;
+	}
+	if(mmc3.irqCounter == 0) {
+		mmc3.irqSignal = 0;
+	}
+	if(mmc3.irqEnable) {
+		cpu.irq &= mmc3.irqSignal;
+	}
+}
+
 // https://www.nesdev.org/wiki/Sunsoft_FME-7#Banks
 struct {
 	uint8_t command;
@@ -323,6 +326,7 @@ struct {
 	uint8_t irqEnable;
 	uint8_t irqCounterEnable;
 	uint16_t irqCounter;
+	uint8_t irqSignal;
 } sunsoft5b;
 
 uint8_t sunsoft5bRead(uint16_t addr) {
@@ -359,12 +363,19 @@ void sunsoft5bWrite(uint16_t addr, uint8_t byte) {
 					break;
 				case 0xD:
 					// irq control
+					sunsoft5b.irqEnable = byte & 1;
+					sunsoft5b.irqCounterEnable = byte >> 7;
+					sunsoft5b.irqSignal = 1;
 					break;
 				case 0xE:
 					// irq counter low byte
+					sunsoft5b.irqCounter &= 0xFF00;
+					sunsoft5b.irqCounter |= byte;
 					break;
 				case 0xF:
 					// irq counter high byte
+					sunsoft5b.irqCounter &= 0xFF;
+					sunsoft5b.irqCounter |= byte << 8;
 					break;
 			}
 		}
@@ -379,6 +390,14 @@ uint8_t sunsoft5bChrRead(uint16_t addr) {
 	return chrROM[addr];
 }
 
+void sunsoft5bCycleCounter(void) {
+	--sunsoft5b.irqCounter;
+	if(sunsoft5b.irqCounter == 0xFFFF) {
+		sunsoft5b.irqSignal = 0;
+	}
+	cpu.irq &= sunsoft5b.irqSignal;
+}
+
 void setMapper(uint16_t id) {
 	switch(id) {
 		case 0x00:
@@ -386,6 +405,8 @@ void setMapper(uint16_t id) {
 			romWriteByte = mapperNoWrite;
 			chrReadByte = chrReadNormal;
 			chrWriteByte = mapperNoWrite;
+			scanlineCounter = noCounter;
+			cycleCounter = noCounter;
 			prgRAMEnabled = 1;
 			break;
 		case 0x01:
@@ -393,6 +414,8 @@ void setMapper(uint16_t id) {
 			romWriteByte = mmc1Write;
 			chrReadByte = mmc1ChrRead;
 			chrWriteByte = chrWriteNormal;
+			scanlineCounter = noCounter;
+			cycleCounter = noCounter;
 			mmc1.shiftReg = 0x10;
 			mmc1.control = 0x0C;
 			prgRAMEnabled = 1;
@@ -402,6 +425,8 @@ void setMapper(uint16_t id) {
 			romWriteByte = unromWrite;
 			chrReadByte = chrReadNormal;
 			chrWriteByte = chrWriteNormal; 
+			scanlineCounter = noCounter;
+			cycleCounter = noCounter;
 			prgRAMEnabled = 1;
 			break;
 		case 0x04:
@@ -409,6 +434,8 @@ void setMapper(uint16_t id) {
 			romWriteByte = mmc3Write;
 			chrReadByte = mmc3ChrRead;
 			chrWriteByte = chrWriteNormal;
+			scanlineCounter = mmc3ScanlineCounter;
+			cycleCounter = noCounter;
 			prgRAMEnabled = 1;
 			break;
 		case 0x45:
@@ -416,6 +443,8 @@ void setMapper(uint16_t id) {
 			romWriteByte = sunsoft5bWrite;
 			chrReadByte = sunsoft5bChrRead;
 			chrWriteByte = chrWriteNormal;
+			scanlineCounter = noCounter;
+			cycleCounter = sunsoft5bCycleCounter;
 			prgRAMEnabled = 0;
 			break;
 		default:
