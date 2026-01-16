@@ -253,6 +253,15 @@ uint8_t ramReadByte(uint16_t addr) {
 		case 0x4017:
 			return pollController(1);;
 		default:
+			// workaround for mappers that use the prg ram region
+			if(addr >= 0x6000 && addr < 0x8000) {
+				if(prgRAMEnabled) {
+					return cpuRAM[addr];
+				} else {
+					return romReadByte(addr);
+				}
+			}
+
 			if(addr >= 0x8000) {
 				#ifdef DEBUG
 					printf("read byte %02X from ROM %04X\n", romReadByte(addr), addr);

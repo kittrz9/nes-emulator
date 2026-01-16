@@ -8,6 +8,7 @@ extern uint8_t* prgROM;
 extern uint8_t* chrROM;
 extern size_t prgSize;
 extern size_t chrSize;
+extern uint8_t prgRAMEnabled;
 
 void setMapper(uint16_t id);
 

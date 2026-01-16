@@ -10,6 +10,8 @@
 uint8_t* prgROM;
 uint8_t* chrROM;
 
+uint8_t prgRAMEnabled = 0;
+
 size_t prgSize;
 size_t chrSize;
 
@@ -312,6 +314,71 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 	}
 }
 
+// https://www.nesdev.org/wiki/Sunsoft_FME-7#Banks
+struct {
+	uint8_t command;
+	uint8_t chrBanks[8];
+	uint8_t prgBanks[4];
+	uint8_t mirroring;
+	uint8_t irqEnable;
+	uint8_t irqCounterEnable;
+	uint16_t irqCounter;
+} sunsoft5b;
+
+uint8_t sunsoft5bRead(uint16_t addr) {
+	uint8_t bank = (addr >> 13) - 3;
+	uint8_t selectedBank = sunsoft5b.prgBanks[bank] & 0x1F;
+	if(bank == 0) {
+		// prg bank 0, ram/rom
+		return prgROM[addr - 0x6000 + selectedBank*0x2000];
+	} else if(bank < 4) {
+		return prgROM[addr - 0x8000 - (bank-1)*0x2000 + selectedBank*0x2000];
+	} else {
+		// fixed to last bank
+		uint16_t newAddr = addr - 0x8000;
+		return prgROM[newAddr + prgSize - 0x8000];
+	}
+}
+
+void sunsoft5bWrite(uint16_t addr, uint8_t byte) {
+	if(addr < 0xA000) {
+		// command register
+		sunsoft5b.command = byte & 0xF;
+	} else if(addr < 0xC000) {
+		// parameter register
+		if(sunsoft5b.command < 8) {
+			// chr bank
+			sunsoft5b.chrBanks[sunsoft5b.command] = byte;
+		} else if(sunsoft5b.command <= 0xB) {
+			// prg banks
+			sunsoft5b.prgBanks[sunsoft5b.command - 8] = byte;
+		} else {
+			switch(sunsoft5b.command) {
+				case 0xC:
+					// mirroring
+					break;
+				case 0xD:
+					// irq control
+					break;
+				case 0xE:
+					// irq counter low byte
+					break;
+				case 0xF:
+					// irq counter high byte
+					break;
+			}
+		}
+	}
+}
+
+uint8_t sunsoft5bChrRead(uint16_t addr) {
+	uint8_t bank = addr >> 10;
+	addr &= 0x3FF;
+	uint8_t selectedBank = sunsoft5b.chrBanks[bank];
+	addr += selectedBank * 0x400;
+	return chrROM[addr];
+}
+
 void setMapper(uint16_t id) {
 	switch(id) {
 		case 0x00:
@@ -319,6 +386,7 @@ void setMapper(uint16_t id) {
 			romWriteByte = mapperNoWrite;
 			chrReadByte = chrReadNormal;
 			chrWriteByte = mapperNoWrite;
+			prgRAMEnabled = 1;
 			break;
 		case 0x01:
 			romReadByte = mmc1Read;
@@ -327,18 +395,28 @@ void setMapper(uint16_t id) {
 			chrWriteByte = chrWriteNormal;
 			mmc1.shiftReg = 0x10;
 			mmc1.control = 0x0C;
+			prgRAMEnabled = 1;
 			break;
 		case 0x02:
 			romReadByte = unromRead;
 			romWriteByte = unromWrite;
 			chrReadByte = chrReadNormal;
 			chrWriteByte = chrWriteNormal; 
+			prgRAMEnabled = 1;
 			break;
 		case 0x04:
 			romReadByte = mmc3Read;
 			romWriteByte = mmc3Write;
 			chrReadByte = mmc3ChrRead;
 			chrWriteByte = chrWriteNormal;
+			prgRAMEnabled = 1;
+			break;
+		case 0x45:
+			romReadByte = sunsoft5bRead;
+			romWriteByte = sunsoft5bWrite;
+			chrReadByte = sunsoft5bChrRead;
+			chrWriteByte = chrWriteNormal;
+			prgRAMEnabled = 0;
 			break;
 		default:
 			printf("unsupported mapper %02X\n", id);
