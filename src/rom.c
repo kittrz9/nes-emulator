@@ -360,6 +360,17 @@ void sunsoft5bWrite(uint16_t addr, uint8_t byte) {
 			switch(sunsoft5b.command) {
 				case 0xC:
 					// mirroring
+					switch(byte & 0x3) {
+						case 0:
+							ppu.mirror = MIRROR_HORIZONTAL;
+							break;
+						case 1:
+							ppu.mirror = MIRROR_VERTICAL;
+							break;
+						default:
+							// single screen stuff unimplemented for now
+							break;
+					}
 					break;
 				case 0xD:
 					// irq control
@@ -379,6 +390,10 @@ void sunsoft5bWrite(uint16_t addr, uint8_t byte) {
 					break;
 			}
 		}
+	} else if(addr < 0xE000) {
+		// audio register select
+	} else {
+		// audio register write
 	}
 }
 
@@ -386,8 +401,7 @@ uint8_t sunsoft5bChrRead(uint16_t addr) {
 	uint8_t bank = addr >> 10;
 	addr &= 0x3FF;
 	uint8_t selectedBank = sunsoft5b.chrBanks[bank];
-	addr += selectedBank * 0x400;
-	return chrROM[addr];
+	return chrROM[addr + selectedBank * 0x400];
 }
 
 void sunsoft5bCycleCounter(void) {
