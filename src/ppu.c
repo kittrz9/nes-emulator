@@ -95,7 +95,6 @@ uint32_t paletteColors[] = {
 	0x000000FF,
 };
 
-
 uint8_t initRenderer(void) {
 	if(SDL_Init(SDL_INIT_VIDEO) == 0) {
 		printf("could not init SDL\n");
@@ -172,7 +171,46 @@ void drawPixel(uint16_t x, uint16_t y) {
 	uint8_t backgroundPixel = 0;
 	// incredibly messy code
 	if(ppu.mask & PPU_MASK_ENABLE_BACKGROUND && !((ppu.mask & PPU_MASK_LEFT_BACKGROUND) == 0 && x < 8)) {
+		// https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
+		uint16_t tileAddr = 0x2000 | (ppu.vramAddr & 0xFFF);
+		uint16_t attribAddr = 0x23C0 | (ppu.vramAddr & 0xC00) | ((ppu.vramAddr >> 4) & 0x38) | ((ppu.vramAddr >> 2) & 0x7);
+		uint8_t coarseX = ppu.vramAddr & 0x1F;
+		uint8_t coarseY = (ppu.vramAddr >> 5) & 0x1F;
+		uint8_t fineX = ppu.x + (x % 8);
+		uint8_t fineY = (ppu.vramAddr >> 12);
+		if(fineX > 7) {
+			if(coarseX < 0x1F) {
+				++coarseX;
+				++tileAddr;
+			} else {
+				coarseX = 0;
+				tileAddr -= 0x1F;
+			}
+		}
+		fineX %= 8;
+		if(fineY > 7) {
+			tileAddr += 256/8;
+			++coarseY;
+		}
+		fineY %= 8;
+
+		uint8_t shift = (coarseX/2) % 2;
+		if((coarseY/2)% 2 == 1) {
+			shift += 2;
+		}
+		shift *= 2;
+
 		uint16_t bank = (ppu.control & PPU_CTRL_BACKGROUND_TABLE ? 0x1000 : 0x0000);
+		uint8_t tileID = ppuRAM[tileAddr];
+		uint8_t attrib = ppuRAM[attribAddr];
+		uint8_t paletteIndex = ((attrib >> shift) & 0x3) << 2;
+
+
+
+		backgroundPixel = bitplaneGetPixel(bank + tileID*8*2, fineX % 8, fineY % 8);
+		*target = bitplaneGetColor(backgroundPixel, paletteIndex);
+		//*target = (tileID << 8) | 0xFF;
+		/*uint16_t bank = (ppu.control & PPU_CTRL_BACKGROUND_TABLE ? 0x1000 : 0x0000);
 		uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
 		uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
 		uint16_t nametableX = (x + scrollX) % 512;
@@ -203,7 +241,7 @@ void drawPixel(uint16_t x, uint16_t y) {
 		uint8_t attribX = tileX/4;
 		uint8_t attribY = tileY/4;
 		uint8_t attribIndex = ((attribY * 8) + attribX)%64;
-		uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;
+		uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;*/
 		/*uint8_t* bitplane1 = bank + tileID*8*2 + (nametableY)%8;
 		uint8_t* bitplane2 = bitplane1 + 8;*/
 		/*uint8_t bitplane1 = chrReadByte(bank + tileID*8*2 + nametableY%8);
@@ -216,8 +254,6 @@ void drawPixel(uint16_t x, uint16_t y) {
 		} else {
 			*target = paletteColors[palette[newIndex]] & (combined == 0 ? paletteColors[ppuRAM[0x3F00]]: 0xFFFFFFFF);
 		}*/
-		backgroundPixel = bitplaneGetPixel(bank + tileID*8*2, nametableX%8, nametableY%8);
-		*target = bitplaneGetColor(backgroundPixel, paletteIndex);
 	} else {
 		*target = paletteColors[ppuRAM[0x3f00]];
 	}
@@ -285,32 +321,71 @@ void ppuStep(void) {
 				break;
 			case 261:
 				ppu.status &= ~PPU_STATUS_SPRITE_0;
-				ppu.currentPixel = 0;
 				ppu.status &= ~(PPU_STATUS_VBLANK);
-				return;
+				break;
 			default:
 				break;
 		}
 	}
-	if(x == 260) {
+	// https://www.nesdev.org/wiki/PPU_scrolling#Wrapping_around
+	if(ppu.mask & (PPU_MASK_ENABLE_BACKGROUND | PPU_MASK_ENABLE_SPRITES)) {
+		if(y < 240) {
+			if(x == 256) {
+				// increment ppu.vramAddr vertically
+				if((ppu.vramAddr & 0x7000) != 0x7000) {
+					ppu.vramAddr += 0x1000;
+				} else {
+					ppu.vramAddr &= ~0x7000;
+					uint8_t coarseY = (ppu.vramAddr & 0x3E0) >> 5;
+					if(coarseY == 29) {
+						coarseY = 0;
+						ppu.vramAddr ^= 0x800;
+					} else if(coarseY == 31) {
+						coarseY = 0;
+					} else {
+						++coarseY;
+					}
+					ppu.vramAddr = (ppu.vramAddr & ~0x3E0) | (coarseY << 5);
+				}
+			}
+			if(x == 257) {
+				// copy horizontal bits from ppu.t to ppu.vramAddr
+				ppu.vramAddr &= ~0x41F;
+				ppu.vramAddr |= ppu.t & 0x41F;
+			}
+			if(x != 0 && x % 8 == 0 && x <= 256) {
+				// increment ppu.vramAddr horizontally
+				if((ppu.vramAddr & 0x1F) == 31) {
+					ppu.vramAddr &= ~0x1F;
+					ppu.vramAddr ^= 0x400;
+				} else {
+					++ppu.vramAddr;
+				}
+			}
+		}
+		if(y == 261 && x >= 280 && x <= 304) {
+			// copy vertical bits from ppu.t to ppu.vramAddr
+			ppu.vramAddr &= ~0x7BE0;
+			ppu.vramAddr |= ppu.t & 0x7BE0;
+		}
+	}
+	if(x == 256 && y < 240) {
 		scanlineCounter();
+	}
+	if(y == 261) {
+		if(x == 339) {
+			//ppu.currentPixel = 0;
+		}
 	}
 	if(x < 256 && y < 240) {
 		drawPixel(ppu.currentPixel % 340, ppu.currentPixel / 340);
+	}
+
+	if(ppu.currentPixel < 340*262 - 1) {
+		++ppu.currentPixel;
 	} else {
-		// hblank
-		// janky way to get the mmc3 stuff to trigger
-		chrReadByte(0);
+		ppu.currentPixel = 0;
 	}
-
-	// sprite 0 jank since smb1 still breaks
-	// it's probably something wrong with how scrolling is handled since it's happening once the x scroll part of the control register gets set
-	// I'm not sure what exactly is wrong though, it should be setting it to 0 before rendering starts
-	if((ppu.status & PPU_STATUS_SPRITE_0) == 0 && ppu.currentPixel == (ppu.oam[0]+8)*340 + ppu.oam[3]) {
-		ppu.status |= PPU_STATUS_SPRITE_0;
-	}
-
-	++ppu.currentPixel;
 }
 
 void render(void) {

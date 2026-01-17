@@ -29,6 +29,8 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x2000:
 			//printf("%04X %i %02X\n", cpu.pc, ppu.currentPixel / 340, byte);
 			ppu.control = byte;
+			ppu.t &= ~0xC00;
+			ppu.t |= (byte & 3) << 10;
 			break;
 		case 0x2001:
 			ppu.mask = byte;
@@ -43,11 +45,12 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x2006:
 			//*((uint8_t*)&ppu.vramAddr + (1 - ppu.w)) = byte;
 			if(!ppu.w) {
-				ppu.vramAddr &= 0xFF;
-				ppu.vramAddr |= (byte & 0x3F) << 8;
+				ppu.t &= ~0xFF00;
+				ppu.t |= (byte & 0x3F) << 8;
 			} else {
-				ppu.vramAddr &= 0xFF00;
-				ppu.vramAddr |= byte;
+				ppu.t &= 0xFF00;
+				ppu.t |= byte;
+				ppu.vramAddr = ppu.t;
 			}
 			#ifdef DEBUG
 				printf("ppu addr set to %04X\n", ppu.vramAddr);
@@ -94,9 +97,14 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 		case 0x2005:
 			if(!ppu.w) {
 				//printf("SCROLLX %02X\n", byte);
-				ppu.scrollX = byte;
+				ppu.t &= ~0x1F;
+				ppu.t |= byte >> 3;
+				ppu.x = byte & 0x7;
 			} else {
-				ppu.scrollY = byte;
+				ppu.t &= ~0x3E0;
+				ppu.t |= (byte & 0xF8) << 2;
+				ppu.t &= ~0x7000;
+				ppu.t |= (byte & 0x7) << 12;
 			}
 			ppu.w = !ppu.w;
 			break;

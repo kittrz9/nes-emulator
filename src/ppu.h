@@ -49,7 +49,7 @@ typedef struct {
 	uint16_t vramAddr;
 	uint8_t scrollX;
 	uint8_t scrollY;
-	uint8_t t;
+	uint16_t t;
 	uint8_t x;
 	uint8_t w;
 	uint8_t mirror;
