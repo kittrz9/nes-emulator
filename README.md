@@ -1,7 +1,7 @@
 # NES emulator
 a simple NES emulator written in C<br>
 <br>
-the only currently implemented mappers are NROM, MMC1, UNROM, and MMC3, and MMC3 scanline stuff isn't fully implemented yet.<br>
+the only currently implemented mappers are NROM, MMC1, UNROM, MMC3, and Sunsoft 5B.<br>
 <br>
 the controls are defined in `src/input.c`, currently they are set to be<br>
 `A - Z`<br>
@@ -11,9 +11,8 @@ the controls are defined in `src/input.c`, currently they are set to be<br>
 `Select - Right Shift`<br>
 <br>
 ## currently known issues
- - smb1 has issues with the hud scrolling due to weird issues with setting the scroll registers and probably innacurate sprite 0 hit stuff too
- - basically any MMC3 game that uses its scanline counter is broken
- - the pulse channel's sweep unit stuff (the stuff that makes the notes slide) is slightly broken, most noticable when going through a pipe or taking damage in smb1
+ - scrolling in metroid is broken, probably due to nametable mirroring stuff
+ - earthbound/mother 1 breaks probably due to broken mmc3 stuff
 <br>
 
 ## building

@@ -186,8 +186,8 @@ void drawPixel(uint16_t x, uint16_t y) {
 				++coarseX;
 				++tileAddr;
 			} else {
-				//coarseX = 0;
-				attribAddr += 0x400;
+				coarseX = 0;
+				attribAddr += 0x400 - 0x1F/4 - 1;
 				tileAddr += 0x400 - 0x1F; // move into the next nametable
 			}
 		}
@@ -209,55 +209,8 @@ void drawPixel(uint16_t x, uint16_t y) {
 		uint8_t attrib = ppuRAM[attribAddr];
 		uint8_t paletteIndex = ((attrib >> shift) & 0x3) << 2;
 
-
-
 		backgroundPixel = bitplaneGetPixel(bank + tileID*8*2, fineX % 8, fineY % 8);
 		*target = bitplaneGetColor(backgroundPixel, paletteIndex);
-		//*target = (tileID << 8) | 0xFF;
-		/*uint16_t bank = (ppu.control & PPU_CTRL_BACKGROUND_TABLE ? 0x1000 : 0x0000);
-		uint16_t scrollX = (ppu.scrollX + (ppu.control & 0x01 ? 256 : 0));
-		uint16_t scrollY = (ppu.scrollY + (ppu.control & 0x02 ? 240 : 0));
-		uint16_t nametableX = (x + scrollX) % 512;
-		uint16_t nametableY = (y + scrollY) % 480;
-		uint8_t* table;
-		if(ppu.mirror & MIRROR_HORIZONTAL) {
-			if(nametableX >= 256) {
-				table = &ppuRAM[0x2400];
-			} else {
-				table = &ppuRAM[0x2000];
-			}
-		} else {
-			if(nametableY >= 240) {
-				table = &ppuRAM[0x2800];
-			} else {
-				table = &ppuRAM[0x2000];
-			}
-		}
-		uint8_t* attribTable = table + 0x3C0;
-		uint8_t tileID = table[((nametableX%256)/8) + ((nametableY%240)/8)*32];
-		uint8_t tileX = (nametableX/8)%32;
-		uint8_t tileY = (nametableY/8)%30;
-		uint8_t shift = (tileX/2) % 2;
-		if((tileY/2)% 2 == 1) {
-			shift += 2;
-		}
-		shift *= 2;
-		uint8_t attribX = tileX/4;
-		uint8_t attribY = tileY/4;
-		uint8_t attribIndex = ((attribY * 8) + attribX)%64;
-		uint8_t paletteIndex = ((attribTable[attribIndex] >> shift) & 0x3) << 2;*/
-		/*uint8_t* bitplane1 = bank + tileID*8*2 + (nametableY)%8;
-		uint8_t* bitplane2 = bitplane1 + 8;*/
-		/*uint8_t bitplane1 = chrReadByte(bank + tileID*8*2 + nametableY%8);
-		uint8_t bitplane2 = chrReadByte(bank + tileID*8*2 + nametableY%8 + 8);
-		uint8_t combined = ((bitplane1 >> (7-(nametableX%8))) & 1) | (((bitplane2 >> (7-(nametableX%8))) & 1) << 1);
-		uint8_t newIndex = paletteIndex | combined;
-		uint8_t* palette = &ppuRAM[0x3F00];
-		if(combined == 0) {
-			*target = paletteColors[ppuRAM[0x3F00]];
-		} else {
-			*target = paletteColors[palette[newIndex]] & (combined == 0 ? paletteColors[ppuRAM[0x3F00]]: 0xFFFFFFFF);
-		}*/
 	} else {
 		*target = paletteColors[ppuRAM[0x3f00]];
 	}
