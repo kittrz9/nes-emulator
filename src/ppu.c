@@ -179,12 +179,16 @@ void drawPixel(uint16_t x, uint16_t y) {
 		uint8_t fineX = ppu.x + (x % 8);
 		uint8_t fineY = (ppu.vramAddr >> 12);
 		if(fineX > 7) {
+			if(coarseX % 4 == 3) {
+				attribAddr += 1;
+			}
 			if(coarseX < 0x1F) {
 				++coarseX;
 				++tileAddr;
 			} else {
-				coarseX = 0;
-				tileAddr -= 0x1F;
+				//coarseX = 0;
+				attribAddr += 0x400;
+				tileAddr += 0x400 - 0x1F; // move into the next nametable
 			}
 		}
 		fineX %= 8;
