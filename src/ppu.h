@@ -9,8 +9,12 @@
 #define SCREEN_WIDTH FB_WIDTH*2
 #define SCREEN_HEIGHT FB_HEIGHT*2
 
-#define MIRROR_VERTICAL 0
-#define MIRROR_HORIZONTAL 1
+enum {
+	MIRROR_VERTICAL = 0,
+	MIRROR_HORIZONTAL = 1,
+	MIRROR_SINGLE_SCREEN1,
+	MIRROR_SINGLE_SCREEN2,
+};
 
 // https://www.nesdev.org/wiki/Cycle_reference_chart
 #define CYCLES_PER_FRAME 29780

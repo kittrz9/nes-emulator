@@ -3,6 +3,7 @@
 #include "SDL3/SDL.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "rom.h"
 #include "ram.h"
@@ -98,10 +99,23 @@ uint8_t ppuRAMRead(uint16_t addr) {
 		chrReadByte(ppu.vramAddr);
 	} else if(addr >= 0x2000 && addr <= 0x2FFF) {
 		uint8_t tableIndex;
-		if(ppu.mirror == MIRROR_VERTICAL) {
-			tableIndex = (addr >> 11) & 1;
-		} else {
-			tableIndex = (addr >> 10) & 1;
+		switch(ppu.mirror) {
+			case MIRROR_VERTICAL:
+				tableIndex = (addr >> 11) & 1;
+				break;
+			case MIRROR_HORIZONTAL:
+				tableIndex = (addr >> 10) & 1;
+				break;
+			case MIRROR_SINGLE_SCREEN1:
+				tableIndex = 0;
+				break;
+			case MIRROR_SINGLE_SCREEN2:
+				tableIndex = 0;
+				break;
+			default:
+				printf("unimplemented mirroring mode %i\n", ppu.mirror);
+				exit(1);
+				break;
 		}
 		return nametables[tableIndex][addr & 0x3FF];
 	} else if(addr >= 0x3F00) {
@@ -114,10 +128,23 @@ void ppuRAMWrite(uint16_t addr, uint8_t byte) {
 		chrWriteByte(ppu.vramAddr, byte);
 	} else if(addr >= 0x2000 && addr <= 0x2FFF) {
 		uint8_t tableIndex;
-		if(ppu.mirror == MIRROR_VERTICAL) {
-			tableIndex = (addr >> 11) & 1;
-		} else {
-			tableIndex = (addr >> 10) & 1;
+		switch(ppu.mirror) {
+			case MIRROR_VERTICAL:
+				tableIndex = (addr >> 11) & 1;
+				break;
+			case MIRROR_HORIZONTAL:
+				tableIndex = (addr >> 10) & 1;
+				break;
+			case MIRROR_SINGLE_SCREEN1:
+				tableIndex = 0;
+				break;
+			case MIRROR_SINGLE_SCREEN2:
+				tableIndex = 0;
+				break;
+			default:
+				printf("unimplemented mirroring mode %i\n", ppu.mirror);
+				exit(1);
+				break;
 		}
 		nametables[tableIndex][addr & 0x3FF] = byte;
 	} else if(addr >= 0x3F00) {
@@ -222,8 +249,6 @@ void drawPixel(uint16_t x, uint16_t y) {
 				if(tileAddr >= 0x3000) {
 					tileAddr -= 0x1000;
 					attribAddr -= 0x1000;
-					//*target = 0xFF0000FF;
-					//return;
 				}
 			}
 		}

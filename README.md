@@ -1,7 +1,7 @@
 # NES emulator
 a simple NES emulator written in C<br>
 <br>
-the only currently implemented mappers are NROM, MMC1, UNROM, MMC3, and Sunsoft 5B.<br>
+the only currently implemented mappers are NROM, MMC1, UNROM, MMC3, and Sunsoft 5B (though the expanded sound from the 5b isn't implemented yet).<br>
 <br>
 the controls are defined in `src/input.c`, currently they are set to be<br>
 `A - Z`<br>
@@ -11,7 +11,7 @@ the controls are defined in `src/input.c`, currently they are set to be<br>
 `Select - Right Shift`<br>
 <br>
 ## currently known issues
- - the world map in gimmick gets messed up after level 2
+mostly just small inaccuracies, though I'm sure there's issues I haven't found yet
 <br>
 
 ## building

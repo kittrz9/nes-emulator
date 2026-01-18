@@ -66,10 +66,22 @@ void mmc1Write(uint16_t addr, uint8_t byte) {
 		switch((addr >> 13) & 0x3) {
 			case 0:
 				mmc1.control = tmp;
-				ppu.mirror = ~tmp & 0x1;
+				switch(tmp & 0x3) {
+					case 0:
+						ppu.mirror = MIRROR_SINGLE_SCREEN1;
+						break;
+					case 1:
+						ppu.mirror = MIRROR_SINGLE_SCREEN2;
+						break;
+					case 2:
+						ppu.mirror = MIRROR_HORIZONTAL;
+						break;
+					case 3:
+						ppu.mirror = MIRROR_VERTICAL;
+						break;
+				}
 				break;
 			case 1:
-				printf("%02X\n", tmp);
 				mmc1.chrBank0 = (tmp & 0x1F);
 				break;
 			case 2:
@@ -355,8 +367,11 @@ void sunsoft5bWrite(uint16_t addr, uint8_t byte) {
 						case 1:
 							ppu.mirror = MIRROR_VERTICAL;
 							break;
-						default:
-							// single screen stuff unimplemented for now
+						case 2:
+							ppu.mirror = MIRROR_SINGLE_SCREEN1;
+							break;
+						case 3:
+							ppu.mirror = MIRROR_SINGLE_SCREEN2;
 							break;
 					}
 					break;
