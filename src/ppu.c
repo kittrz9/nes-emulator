@@ -219,6 +219,12 @@ void drawPixel(uint16_t x, uint16_t y) {
 				coarseX = 0;
 				attribAddr += 0x400 - 0x1F/4 - 1;
 				tileAddr += 0x400 - 0x1F; // move into the next nametable
+				if(tileAddr >= 0x3000) {
+					tileAddr -= 0x1000;
+					attribAddr -= 0x1000;
+					//*target = 0xFF0000FF;
+					//return;
+				}
 			}
 		}
 		fineX %= 8;
@@ -292,27 +298,21 @@ void drawPixel(uint16_t x, uint16_t y) {
 void ppuStep(void) {
 	uint16_t x = ppu.currentPixel % 340;
 	uint16_t y = ppu.currentPixel / 340;
-	if(x == 0) {
-		switch(y) {
-			case 240:
-				ppu.status |= PPU_STATUS_VBLANK;
-				if(ppu.control & PPU_CTRL_ENABLE_VBLANK) {
-					push((cpu.pc & 0xFF00) >> 8);
-					push(cpu.pc & 0xFF);
-					push((cpu.p & ~(B_FLAG)) | 0x20);
-					cpu.p |= I_FLAG;
-					cpu.pc = ADDR16(NMI_VECTOR);
-				}
-				apuPrintDebug();
-				render();
-				break;
-			case 261:
-				ppu.status &= ~PPU_STATUS_SPRITE_0;
-				ppu.status &= ~(PPU_STATUS_VBLANK);
-				break;
-			default:
-				break;
+	if(y == 261 && x == 0) {
+		ppu.status &= ~PPU_STATUS_SPRITE_0;
+		ppu.status &= ~(PPU_STATUS_VBLANK);
+	}
+	if(y == 241 && x == 1) {
+		ppu.status |= PPU_STATUS_VBLANK;
+		if(ppu.control & PPU_CTRL_ENABLE_VBLANK) {
+			push((cpu.pc & 0xFF00) >> 8);
+			push(cpu.pc & 0xFF);
+			push((cpu.p & ~(B_FLAG)) | 0x20);
+			cpu.p |= I_FLAG;
+			cpu.pc = ADDR16(NMI_VECTOR);
 		}
+		apuPrintDebug();
+		render();
 	}
 	// https://www.nesdev.org/wiki/PPU_scrolling#Wrapping_around
 	if(ppu.mask & (PPU_MASK_ENABLE_BACKGROUND | PPU_MASK_ENABLE_SPRITES)) {

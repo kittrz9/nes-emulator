@@ -11,7 +11,7 @@ the controls are defined in `src/input.c`, currently they are set to be<br>
 `Select - Right Shift`<br>
 <br>
 ## currently known issues
- - horizontally scrolling in metroid shows the wrong tiles at the edges of nametables
+ - the world map in gimmick gets messed up after level 2
 <br>
 
 ## building
