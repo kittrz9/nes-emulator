@@ -71,21 +71,9 @@ void mmc1Write(uint16_t addr, uint8_t byte) {
 			case 1:
 				printf("%02X\n", tmp);
 				mmc1.chrBank0 = (tmp & 0x1F);
-				/*if(chrSize == 0) { break; }
-				// 1 8k bank if 0, 2 4k banks if 1
-				if(mmc1.control & 0x10) {
-					// dumb workaround
-					memcpy(ppuRAM, chrROM + (mmc1.chrBank0 << 12), 0x1000);
-				} else {
-					memcpy(ppuRAM, chrROM + ((mmc1.chrBank0 & ~1) << 12), 0x2000);
-				}*/
 				break;
 			case 2:
-				//if(chrSize == 0) { break; }
 				mmc1.chrBank1 = (tmp & 0x1F);
-				/*if(mmc1.control & 0x10) {
-					memcpy(ppuRAM+0x1000, chrROM + (mmc1.chrBank1 << 12), 0x1000);
-				}*/
 				break;
 			case 3:
 				mmc1.prgBank = tmp;

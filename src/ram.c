@@ -61,26 +61,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			#ifdef DEBUG
 				printf("writing %02X into ppu %04X\n", byte, ppu.vramAddr);
 			#endif
-			if(ppu.vramAddr < 0x2000) {
-				chrWriteByte(ppu.vramAddr, byte);
-			} else {
-				ppuRAM[ppu.vramAddr % 0x4000] = byte;
-			}
-			if(ppu.vramAddr >= 0x2000 && ppu.vramAddr <= 0x3000) {
-				if(ppu.mirror & MIRROR_HORIZONTAL) {
-					//printf("H%04X %04X\n", ppu.vramAddr | 0x800, ppu.vramAddr & ~(0x800));
-					ppuRAM[ppu.vramAddr | 0x800] = byte;
-					ppuRAM[ppu.vramAddr & ~(0x800)] = byte;
-				} else {
-					//printf("V%04X %04X\n", ppu.vramAddr | 0x400, ppu.vramAddr & ~(0x400));
-					ppuRAM[ppu.vramAddr | 0x400] = byte;
-					ppuRAM[ppu.vramAddr & ~(0x400)] = byte;
-				}
-			}
-			// https://www.nesdev.org/wiki/PPU_palettes#Memory_Map
-			if(ppu.vramAddr >= 0x3F00 && ppu.vramAddr < 0x3F20 && ppu.vramAddr % 4 == 0) {
-				ppuRAM[ppu.vramAddr ^ 0x10] = byte;
-			}
+			ppuRAMWrite(ppu.vramAddr % 0x4000, byte);
 			ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
 			break;
 		case 0x4014:
@@ -220,7 +201,7 @@ uint8_t ramReadByte(uint16_t addr) {
 		case 0x2007: {
 			// https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer
 			uint8_t v = ppu.readBuffer;
-			ppu.readBuffer = ppuRAM[ppu.vramAddr%0x4000];
+			ppu.readBuffer = ppuRAMRead(ppu.vramAddr%0x4000);
 			if(ppu.control & 0x4) {
 				ppu.vramAddr += 32;
 			} else {

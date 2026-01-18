@@ -66,7 +66,6 @@ uint8_t loadROM(const char* path) {
 	if(chrSize != 0) {
 		chrROM = malloc(chrSize);
 		memcpy(chrROM, chrLocation, chrSize);
-		memcpy(ppuRAM, chrROM, 0x2000);
 	} else {
 		chrROM = malloc(0x2000);
 	}

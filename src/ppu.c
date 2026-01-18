@@ -16,11 +16,6 @@ ppu_t ppu;
 
 uint8_t fpsUncap = 0;
 
-uint8_t ppuRAM[0x4000];
-
-uint8_t nametableBank1[0x400];
-uint8_t nametableBank2[0x400];
-
 SDL_Window* w;
 SDL_Surface* windowSurface;
 SDL_Surface* frameBuffer;
@@ -95,6 +90,42 @@ uint32_t paletteColors[] = {
 	0x000000FF,
 };
 
+uint8_t nametables[2][0x400];
+uint8_t paletteRAM[0x20];
+
+uint8_t ppuRAMRead(uint16_t addr) {
+	if(addr < 0x2000) {
+		chrReadByte(ppu.vramAddr);
+	} else if(addr >= 0x2000 && addr <= 0x2FFF) {
+		uint8_t tableIndex;
+		if(ppu.mirror == MIRROR_VERTICAL) {
+			tableIndex = (addr >> 11) & 1;
+		} else {
+			tableIndex = (addr >> 10) & 1;
+		}
+		return nametables[tableIndex][addr & 0x3FF];
+	} else if(addr >= 0x3F00) {
+		return paletteRAM[addr & 0x1F];
+	}
+}
+
+void ppuRAMWrite(uint16_t addr, uint8_t byte) {
+	if(addr < 0x2000) {
+		chrWriteByte(ppu.vramAddr, byte);
+	} else if(addr >= 0x2000 && addr <= 0x2FFF) {
+		uint8_t tableIndex;
+		if(ppu.mirror == MIRROR_VERTICAL) {
+			tableIndex = (addr >> 11) & 1;
+		} else {
+			tableIndex = (addr >> 10) & 1;
+		}
+		nametables[tableIndex][addr & 0x3FF] = byte;
+	} else if(addr >= 0x3F00) {
+		if(addr % 4 == 0) { paletteRAM[(addr & 0x1F)^0x10] = byte; }
+		paletteRAM[addr & 0x1F] = byte;
+	}
+}
+
 uint8_t initRenderer(void) {
 	if(SDL_Init(SDL_INIT_VIDEO) == 0) {
 		printf("could not init SDL\n");
@@ -130,11 +161,10 @@ uint8_t bitplaneGetPixel(uint16_t bitplaneStart, uint16_t x, uint16_t y) {
 
 uint32_t bitplaneGetColor(uint8_t combined, uint8_t paletteIndex) {
 	uint8_t newIndex = paletteIndex | combined;
-	uint8_t* palette = &ppuRAM[0x3F00];
 	if(combined == 0) {
-		return paletteColors[ppuRAM[0x3F00]];
+		return paletteColors[ppuRAMRead(0x3F00)];
 	} else {
-		return paletteColors[palette[newIndex]] & (combined == 0 ? paletteColors[ppuRAM[0x3F00]]: 0xFFFFFFFF);
+		return paletteColors[ppuRAMRead(0x3F00 + newIndex)] & (combined == 0 ? paletteColors[ppuRAMRead(0x3F00)]: 0xFFFFFFFF);
 	}
 }
 
@@ -205,19 +235,19 @@ void drawPixel(uint16_t x, uint16_t y) {
 		shift *= 2;
 
 		uint16_t bank = (ppu.control & PPU_CTRL_BACKGROUND_TABLE ? 0x1000 : 0x0000);
-		uint8_t tileID = ppuRAM[tileAddr];
-		uint8_t attrib = ppuRAM[attribAddr];
+		uint8_t tileID = ppuRAMRead(tileAddr);
+		uint8_t attrib = ppuRAMRead(attribAddr);
 		uint8_t paletteIndex = ((attrib >> shift) & 0x3) << 2;
 
 		backgroundPixel = bitplaneGetPixel(bank + tileID*8*2, fineX % 8, fineY % 8);
 		*target = bitplaneGetColor(backgroundPixel, paletteIndex);
 	} else {
-		*target = paletteColors[ppuRAM[0x3f00]];
+		*target = paletteColors[ppuRAMRead(0x3f00)];
 	}
 	if(ppu.mask & PPU_MASK_ENABLE_SPRITES && !((ppu.mask & PPU_MASK_LEFT_SPRITES) == 0 && x < 8)) {
 		for(uint8_t i = 0; i < 8; ++i) {
 			uint8_t spriteX = secondaryOAM[i*4 + 3];
-			uint8_t spriteY = secondaryOAM[i*4 + 0] + 1;
+			uint16_t spriteY = secondaryOAM[i*4 + 0] + 1;
 			uint8_t spriteAttribs = secondaryOAM[i*4 + 2];
 			if(x < spriteX || x > spriteX + 7 || y < spriteY || y > spriteY + ySize - 1) {
 				   continue;

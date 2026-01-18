@@ -11,8 +11,7 @@ the controls are defined in `src/input.c`, currently they are set to be<br>
 `Select - Right Shift`<br>
 <br>
 ## currently known issues
- - scrolling in metroid is broken, probably due to nametable mirroring stuff
- - earthbound/mother 1 breaks probably due to broken mmc3 stuff
+ - horizontally scrolling in metroid shows the wrong tiles at the edges of nametables
 <br>
 
 ## building

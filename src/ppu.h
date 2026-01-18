@@ -47,8 +47,6 @@ typedef struct {
 	uint8_t status;
 	uint16_t oamAddr;
 	uint16_t vramAddr;
-	uint8_t scrollX;
-	uint8_t scrollY;
 	uint16_t t;
 	uint8_t x;
 	uint8_t w;
@@ -61,10 +59,8 @@ typedef struct {
 
 extern ppu_t ppu;
 
-extern uint8_t ppuRAM[0x4000];
-
-extern uint8_t nametableBank1[0x400];
-extern uint8_t nametableBank2[0x400];
+void ppuRAMWrite(uint16_t addr, uint8_t byte);
+uint8_t ppuRAMRead(uint16_t addr);
 
 uint8_t initRenderer(void);
 void uninitRenderer(void);
