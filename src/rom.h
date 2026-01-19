@@ -22,4 +22,6 @@ extern uint8_t (*chrReadByte)(uint16_t addr);
 extern void (*scanlineCounter)(void);
 extern void (*cycleCounter)(void);
 
+extern float (*expandedAudioGetSample)(void);
+
 #endif

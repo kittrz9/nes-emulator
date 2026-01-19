@@ -10,6 +10,7 @@
 
 #include "cpu.h"
 #include "ram.h"
+#include "rom.h"
 #include "ppu.h"
 #include "debug.h"
 
@@ -395,6 +396,7 @@ void apuStep(void) {
 			samples[currentSample] += noiseGetSample();
 			samples[currentSample] += triGetSample();
 			samples[currentSample] += dmcGetSample();
+			samples[currentSample] += expandedAudioGetSample();
 			++currentSample;
 		}
 	}

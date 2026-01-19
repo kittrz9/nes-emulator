@@ -24,6 +24,12 @@ uint8_t (*chrReadByte)(uint16_t addr);
 void (*scanlineCounter)(void);
 void (*cycleCounter)(void);
 
+float (*expandedAudioGetSample)(void);
+
+float noExpandedAudio(void) {
+	return 0.0f;
+}
+
 void noCounter(void) { return; }
 
 uint8_t chrReadNormal(uint16_t addr) {
@@ -327,10 +333,24 @@ struct {
 	uint8_t irqCounterEnable;
 	uint16_t irqCounter;
 	uint8_t irqSignal;
+
+	uint8_t audioRegister;
+	struct {
+		uint16_t timerPeriod;
+		uint16_t timer;
+		uint8_t volume;
+		uint8_t output;
+	} pulseChannels[3];
+	uint8_t cycles;
 } sunsoft5b;
 
 uint8_t sunsoft5bRead(uint16_t addr) {
 	uint8_t bank = (addr >> 13) - 3;
+	if(bank > 3) {
+		// fixed to last bank
+		uint16_t newAddr = addr - 0x8000;
+		return prgROM[newAddr + prgSize - 0x8000];
+	}
 	uint8_t selectedBank = sunsoft5b.prgBanks[bank] & 0x1F;
 	if(bank == 0) {
 		// prg bank 0, ram/rom
@@ -338,9 +358,6 @@ uint8_t sunsoft5bRead(uint16_t addr) {
 	} else if(bank < 4) {
 		return prgROM[addr - 0x8000 - (bank-1)*0x2000 + selectedBank*0x2000];
 	} else {
-		// fixed to last bank
-		uint16_t newAddr = addr - 0x8000;
-		return prgROM[newAddr + prgSize - 0x8000];
 	}
 }
 
@@ -395,8 +412,46 @@ void sunsoft5bWrite(uint16_t addr, uint8_t byte) {
 		}
 	} else if(addr < 0xE000) {
 		// audio register select
+		sunsoft5b.audioRegister = byte;
 	} else {
 		// audio register write
+		if(sunsoft5b.audioRegister & 0xF0) { return; }
+		if(sunsoft5b.audioRegister < 6) {
+			uint8_t channel = sunsoft5b.audioRegister / 2;
+			if(sunsoft5b.audioRegister & 1) {
+				// high period
+				sunsoft5b.pulseChannels[channel].timerPeriod &= 0xFF;
+				sunsoft5b.pulseChannels[channel].timerPeriod |= byte << 8;
+			} else {
+				// low period
+				sunsoft5b.pulseChannels[channel].timerPeriod &= 0xFF00;
+				sunsoft5b.pulseChannels[channel].timerPeriod |= byte;
+			}
+		} else if(sunsoft5b.audioRegister >= 0x8 && sunsoft5b.audioRegister <= 0xA) {
+			// pulse channel volume and envelope
+			uint8_t channel = sunsoft5b.audioRegister - 0x8;
+			sunsoft5b.pulseChannels[channel].volume = byte & 0xF;
+		} else {
+			switch(sunsoft5b.audioRegister) {
+				case 0x6:
+					// noise period
+					break;
+				case 0x7:
+					// noise/tone disable
+					break;
+				case 0xB:
+					// envelope low period
+					break;
+				case 0xC:
+					// envelope high period
+					break;
+				case 0xD:
+					// envelope reset and shape
+					break;
+				default:
+					break;
+			}
+		}
 	}
 }
 
@@ -413,6 +468,25 @@ void sunsoft5bCycleCounter(void) {
 		sunsoft5b.irqSignal = 0;
 	}
 	cpu.irq &= sunsoft5b.irqSignal;
+	++sunsoft5b.cycles;
+	if(sunsoft5b.cycles >= 16) {
+		sunsoft5b.cycles = 0;
+		for(uint8_t i = 0; i < 3; ++i) {
+			++sunsoft5b.pulseChannels[i].timer;
+			if(sunsoft5b.pulseChannels[i].timer >= sunsoft5b.pulseChannels[i].timerPeriod) {
+				sunsoft5b.pulseChannels[i].timer = 0;
+				sunsoft5b.pulseChannels[i].output = ~sunsoft5b.pulseChannels[i].output;
+			}
+		}
+	}
+}
+
+float sunsoft5bGetSample(void) {
+	float output = 0;
+	for(uint8_t i = 0; i < 3; ++i) {
+		output += (sunsoft5b.pulseChannels[i].output / (256.0f)) * (sunsoft5b.pulseChannels[i].volume / 15.0f);
+	}
+	return output / 16.0f; // not accurately mixing for now, just lowered it until it sounded ok
 }
 
 void setMapper(uint16_t id) {
@@ -424,6 +498,7 @@ void setMapper(uint16_t id) {
 			chrWriteByte = mapperNoWrite;
 			scanlineCounter = noCounter;
 			cycleCounter = noCounter;
+			expandedAudioGetSample = noExpandedAudio;
 			prgRAMEnabled = 1;
 			break;
 		case 0x01:
@@ -433,6 +508,7 @@ void setMapper(uint16_t id) {
 			chrWriteByte = chrWriteNormal;
 			scanlineCounter = noCounter;
 			cycleCounter = noCounter;
+			expandedAudioGetSample = noExpandedAudio;
 			mmc1.shiftReg = 0x10;
 			mmc1.control = 0x0C;
 			prgRAMEnabled = 1;
@@ -444,6 +520,7 @@ void setMapper(uint16_t id) {
 			chrWriteByte = chrWriteNormal; 
 			scanlineCounter = noCounter;
 			cycleCounter = noCounter;
+			expandedAudioGetSample = noExpandedAudio;
 			prgRAMEnabled = 1;
 			break;
 		case 0x04:
@@ -453,6 +530,7 @@ void setMapper(uint16_t id) {
 			chrWriteByte = chrWriteNormal;
 			scanlineCounter = mmc3ScanlineCounter;
 			cycleCounter = noCounter;
+			expandedAudioGetSample = noExpandedAudio;
 			prgRAMEnabled = 1;
 			break;
 		case 0x45:
@@ -462,6 +540,7 @@ void setMapper(uint16_t id) {
 			chrWriteByte = chrWriteNormal;
 			scanlineCounter = noCounter;
 			cycleCounter = sunsoft5bCycleCounter;
+			expandedAudioGetSample = sunsoft5bGetSample;
 			prgRAMEnabled = 0;
 			break;
 		default:
