@@ -1,7 +1,7 @@
 # NES emulator
 a simple NES emulator written in C<br>
 <br>
-the only currently implemented mappers are NROM, MMC1, UNROM, MMC3, and Sunsoft 5B (though the expanded sound from the 5b isn't implemented yet).<br>
+the only currently implemented mappers are NROM, MMC1, UNROM, MMC3, and Sunsoft 5B (though the 5B's expanded audio only has enough implemented for Gimmick).<br>
 <br>
 the controls are defined in `src/input.c`, currently they are set to be<br>
 `A - Z`<br>

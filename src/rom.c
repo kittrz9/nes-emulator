@@ -341,6 +341,7 @@ struct {
 		uint8_t volume;
 		uint8_t output;
 	} pulseChannels[3];
+	uint8_t disabledChannels;
 	uint8_t cycles;
 } sunsoft5b;
 
@@ -438,6 +439,7 @@ void sunsoft5bWrite(uint16_t addr, uint8_t byte) {
 					break;
 				case 0x7:
 					// noise/tone disable
+					sunsoft5b.disabledChannels = byte;
 					break;
 				case 0xB:
 					// envelope low period
@@ -484,6 +486,7 @@ void sunsoft5bCycleCounter(void) {
 float sunsoft5bGetSample(void) {
 	float output = 0;
 	for(uint8_t i = 0; i < 3; ++i) {
+		if(sunsoft5b.disabledChannels & (1 << i)) { continue; }
 		output += (sunsoft5b.pulseChannels[i].output / (256.0f)) * (sunsoft5b.pulseChannels[i].volume / 15.0f);
 	}
 	return output / 16.0f; // not accurately mixing for now, just lowered it until it sounded ok
