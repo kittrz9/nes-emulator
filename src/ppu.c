@@ -341,7 +341,7 @@ void ppuStep(void) {
 	}
 	// https://www.nesdev.org/wiki/PPU_scrolling#Wrapping_around
 	if(ppu.mask & (PPU_MASK_ENABLE_BACKGROUND | PPU_MASK_ENABLE_SPRITES)) {
-		if(y < 240) {
+		if(y < 240 || y == 261) {
 			if(x == 256) {
 				// increment ppu.vramAddr vertically
 				if((ppu.vramAddr & 0x7000) != 0x7000) {
@@ -383,11 +383,6 @@ void ppuStep(void) {
 	}
 	if(x == 256 && y < 240) {
 		scanlineCounter();
-	}
-	if(y == 261) {
-		if(x == 339) {
-			//ppu.currentPixel = 0;
-		}
 	}
 	if(x < 256 && y < 240) {
 		drawPixel(ppu.currentPixel % 340, ppu.currentPixel / 340);
