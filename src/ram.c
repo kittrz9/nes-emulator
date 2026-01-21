@@ -76,6 +76,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			controllerLatch = byte & 0x01;
 			if(controllerLatch) {
 				controllers[0].shiftRegister = controllers[0].buttons;
+				controllers[1].shiftRegister = controllers[1].buttons;
 			}
 			break;
 		case 0x2005:

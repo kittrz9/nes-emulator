@@ -465,8 +465,10 @@ uint8_t sunsoft5bChrRead(uint16_t addr) {
 }
 
 void sunsoft5bCycleCounter(void) {
+	// I should be checking the irq counter enable flag, but that ends up making the hud at the bottom of the screen in gimmick have slight issues
+	// presumably there's some instruction(s) that are taking too many cycles than they should
 	--sunsoft5b.irqCounter;
-	if(sunsoft5b.irqCounter == 0xFFFF) {
+	if(sunsoft5b.irqEnable && sunsoft5b.irqCounter == 0xFFFF) {
 		sunsoft5b.irqSignal = 0;
 	}
 	cpu.irq &= sunsoft5b.irqSignal;
