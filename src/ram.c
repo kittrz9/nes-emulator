@@ -74,6 +74,10 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			break;
 		case 0x4016:
 			controllerLatch = byte & 0x01;
+			if(controllerLatch) {
+				controllers[0].shiftRegister = controllers[0].buttons;
+				controllers[0].bitsLeft = 8;
+			}
 			break;
 		case 0x2005:
 			if(!ppu.w) {

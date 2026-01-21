@@ -23,11 +23,16 @@ SDL_Event e;
 uint8_t pollController(uint8_t port) {
 	controller_t* c = &controllers[port];
 
-	if(controllerLatch) { return 0; } // idk what happens when you try to read while latch is set, presumably it reads like just open bus stuff
+	if(controllerLatch) {
+		c->shiftRegister = c->buttons;
+		c->bitsLeft = 8;
+		return c->shiftRegister & 0x1;
+	}
 
-	if(c->currentBit == 0) { c->currentBit = 0x80; }
-	uint8_t ret = (c->buttons & c->currentBit) != 0;
-	c->currentBit >>= 1;
+	if(c->bitsLeft == 0) { return 1; }
+	uint8_t ret = c->shiftRegister >> 7;
+	c->shiftRegister <<= 1;
+	--c->bitsLeft;
 	return ret;
 }
 

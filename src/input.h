@@ -5,7 +5,8 @@
 
 typedef struct {
 	uint8_t buttons;
-	uint8_t currentBit;
+	uint8_t shiftRegister;
+	uint8_t bitsLeft;
 } controller_t;
 
 extern uint8_t controllerLatch;
