@@ -25,14 +25,12 @@ uint8_t pollController(uint8_t port) {
 
 	if(controllerLatch) {
 		c->shiftRegister = c->buttons;
-		c->bitsLeft = 8;
 		return c->shiftRegister & 0x1;
 	}
 
-	if(c->bitsLeft == 0) { return 1; }
-	uint8_t ret = c->shiftRegister >> 7;
-	c->shiftRegister <<= 1;
-	--c->bitsLeft;
+	uint8_t ret = c->shiftRegister & 1;
+	c->shiftRegister >>= 1;
+	c->shiftRegister |= 0x80;
 	return ret;
 }
 
@@ -48,14 +46,14 @@ uint8_t handleInput(void) {
 		return 1;
 	}
 	const SDL_Keycode inputKeys[] = {
-		SDL_SCANCODE_RIGHT,
-		SDL_SCANCODE_LEFT,
-		SDL_SCANCODE_DOWN,
-		SDL_SCANCODE_UP,
-		SDL_SCANCODE_RETURN, // START
-		SDL_SCANCODE_RSHIFT, // SELECT
-		SDL_SCANCODE_X, // B
 		SDL_SCANCODE_Z, // A
+		SDL_SCANCODE_X, // B
+		SDL_SCANCODE_RSHIFT, // SELECT
+		SDL_SCANCODE_RETURN, // START
+		SDL_SCANCODE_UP,
+		SDL_SCANCODE_DOWN,
+		SDL_SCANCODE_LEFT,
+		SDL_SCANCODE_RIGHT,
 	};
 	for(uint8_t i = 0; i < 8; ++i) {
 		if(keys[inputKeys[i]]) {
