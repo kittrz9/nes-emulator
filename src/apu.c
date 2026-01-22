@@ -17,8 +17,8 @@
 SDL_AudioStream* stream = NULL;
 
 #define CPU_FREQ 1789773
-#define SAMPLE_RATE 48000
-#define BUFFER_SIZE 4096
+#define SAMPLE_RATE 41000
+#define BUFFER_SIZE SAMPLE_RATE/30
 
 struct envStruct {
 	uint8_t constantVolFlag;
@@ -113,6 +113,8 @@ void initAPU(void) {
 		printf("could not create audio stream\n");
 		exit(1);
 	}
+	memset(samples, 0, sizeof(samples));
+	SDL_PutAudioStreamData(stream, samples, sizeof(samples));
 	SDL_ResumeAudioStreamDevice(stream);
 
 	apu.noise.lfsr = 1;
@@ -384,12 +386,7 @@ void apuStep(void) {
 
 	// need to do actual resampling at some point instead of this lmao
 	if(apu.cycles % (CPU_FREQ/SAMPLE_RATE) == 0) {
-		if(currentSample > BUFFER_SIZE-1) {
-			if(SDL_GetAudioStreamQueued(stream) < (int)(SAMPLE_RATE * sizeof(float))/32) {
-				SDL_PutAudioStreamData(stream, samples, sizeof(samples));
-				currentSample = 0;
-			}
-		} else {
+		if(currentSample < BUFFER_SIZE) {
 			samples[currentSample] = 0.0f;
 			samples[currentSample] += pulseGetSample(0);
 			samples[currentSample] += pulseGetSample(1);
@@ -399,6 +396,16 @@ void apuStep(void) {
 			samples[currentSample] += expandedAudioGetSample();
 			++currentSample;
 		}
+	}
+	int bytesQueued = SDL_GetAudioStreamQueued(stream);
+	if(bytesQueued < BUFFER_SIZE * sizeof(float)) {
+		/*static uint32_t bytesMin = BUFFER_SIZE * sizeof(float) + 1;
+		if(bytesQueued < bytesMin) {
+			bytesMin = bytesQueued;
+			printf("%i\n", bytesMin);
+		}*/
+		SDL_PutAudioStreamData(stream, samples, sizeof(float) * currentSample);
+		currentSample = 0;
 	}
 }
 
