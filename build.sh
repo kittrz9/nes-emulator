@@ -2,7 +2,7 @@
 
 set -xe
 
-SDL_VERSION="3.2.8"
+SDL_VERSION="3.4.0"
 
 if [ "$DEBUG" ]; then
 	#DEFINES="-DDEBUG -DUNCAP_FPS"

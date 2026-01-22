@@ -17,7 +17,7 @@
 SDL_AudioStream* stream = NULL;
 
 #define CPU_FREQ 1789773
-#define SAMPLE_RATE 41000
+#define SAMPLE_RATE 44100
 #define BUFFER_SIZE SAMPLE_RATE/30
 
 struct envStruct {
@@ -130,13 +130,16 @@ uint8_t pulseDutyCycleLUT[] = {
 float pulseGetSample(uint8_t index) {
 	if(apu.pulse[index].mute) { return 0.0f; }
 	if(apu.pulse[index].counter != 0 && apu.pulse[index].timerPeriod > 8) {
-		if((pulseDutyCycleLUT[apu.pulse[index].duty] >> apu.pulse[index].dutyCycleProgress) & 1) {
-			if(apu.pulse[index].env.constantVolFlag) {
-				return apu.pulse[index].env.volume/256.0;
-			} else {
-				return apu.pulse[index].env.decayCounter/256.0;
-			}
+		float output;
+		if(apu.pulse[index].env.constantVolFlag) {
+			output = apu.pulse[index].env.volume/512.0f;
+		} else {
+			output = apu.pulse[index].env.decayCounter/512.0f;
 		}
+		if((pulseDutyCycleLUT[apu.pulse[index].duty] >> apu.pulse[index].dutyCycleProgress) & 1) {
+			output *= -1.0f;
+		}
+		return output;
 	}
 	return 0.0f;
 }
@@ -147,13 +150,16 @@ uint16_t noiseTimerLUT[] = {
 };
 float noiseGetSample(void) {
 	if(apu.noise.counter > 0 && !(apu.noise.lfsr & 1)) {
-		if((apu.noise.lfsr & 1) == 0) {
-			if(apu.noise.env.constantVolFlag) {
-				return (apu.noise.env.volume/256.0);
-			} else {
-				return (apu.noise.env.decayCounter/256.0);
-			}
+		float output;
+		if(apu.noise.env.constantVolFlag) {
+			output = (apu.noise.env.volume/256.0);
+		} else {
+			output = (apu.noise.env.decayCounter/256.0);
 		}
+		if((apu.noise.lfsr & 1) == 0) {
+			output *= -1.0f;
+		}
+		return output;
 	}
 	return 0.0f;
 }
@@ -165,11 +171,11 @@ uint8_t triLUT[] = {
 };
 
 float triGetSample(void) {
-	return (triLUT[apu.tri.progress]/16.0f)/8.0f;
+	return ((triLUT[apu.tri.progress]/15.0f)-0.5f)/8.0f;
 }
 
 float dmcGetSample(void) {
-	return apu.dmc.output/256.0;
+	return (apu.dmc.output/256.0) - 0.25f;
 }
 
 void updateSweeps(void) {
