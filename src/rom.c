@@ -356,9 +356,8 @@ uint8_t sunsoft5bRead(uint16_t addr) {
 	if(bank == 0) {
 		// prg bank 0, ram/rom
 		return prgROM[addr - 0x6000 + selectedBank*0x2000];
-	} else if(bank < 4) {
-		return prgROM[addr - 0x8000 - (bank-1)*0x2000 + selectedBank*0x2000];
 	} else {
+		return prgROM[addr - 0x8000 - (bank-1)*0x2000 + selectedBank*0x2000];
 	}
 }
 

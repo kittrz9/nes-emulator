@@ -54,11 +54,13 @@ void cpuInit(void) {
 void push(uint8_t byte) {
 	ramWriteByte(0x100 + cpu.s, byte);
 	--cpu.s;
+	++cpu.cycles;
 	return;
 }
 
 uint8_t pop(void) {
 	++cpu.s;
+	cpu.cycles += 2;
 	return ramReadByte(0x100 + cpu.s);
 }
 
@@ -206,10 +208,9 @@ uint8_t cpuStep(void) {
 	// decoding the instructions like this might be slightly slower than just having the massive switch statement
 	// since I think the switch statement would just compile to a huge jump table
 	// but I haven't actually done any testing to see if that's the case
-	// it also seems to have broken the brk instruction slightly according to accuracycoin
-	// it says it fails to do an irq, but then if you do the test again it passes
-	// so idk maybe it's something to do with the cycle timings that probably aren't fully accurate with this
-	// doesn't seem to affect any games and everything else seems fine
+
+	// cycle counts for unofficial opcodes probably wont be accurate
+
 	uint16_t addr;
 	uint8_t addrMode = opcode & 0x1F;
 	uint8_t instrType = opcode & 3;
@@ -258,7 +259,12 @@ uint8_t cpuStep(void) {
 			// absolute
 			addr = ABS_ADDR;
 			cpu.pc += 2;
-			cpu.cycles += 2;
+			if(opcode == 0x4C || opcode == 0x6C) {
+				// exception for jmp
+				++cpu.cycles;
+			} else {
+				cpu.cycles += 2;
+			}
 			break;
 		case 4:
 			switch(instrType) {
@@ -276,6 +282,9 @@ uint8_t cpuStep(void) {
 					addr += cpu.y;
 					++cpu.pc;
 					cpu.cycles += 3;
+					if(opcode == 0x91) {
+						++cpu.cycles; // hardcoded exception for sta
+					}
 					break;
 				case 2:
 					// implicit (stp)
@@ -312,9 +321,15 @@ uint8_t cpuStep(void) {
 			} else {
 				// absolute x indexed
 				addr = ABS_INDEX_ADDR(cpu.x);
+				if(instrType == 2) {
+					++cpu.cycles;
+				}
 			}
 			cpu.pc += 2;
 			cpu.cycles += 2;
+			if(opcode == 0x9D || opcode == 0x99) {
+				++cpu.cycles; // hardcoded exception for sta
+			}
 			break;
 	}
 	switch(instrType) {
@@ -341,7 +356,7 @@ uint8_t cpuStep(void) {
 					push(cpu.p | B_FLAG | 0x20);
 					cpu.p |= I_FLAG;
 					cpu.pc = ADDR16(IRQ_VECTOR);
-					cpu.cycles += 5;
+					//cpu.cycles += 5;
 					break;
 				case 0x08:
 					// php
@@ -353,6 +368,7 @@ uint8_t cpuStep(void) {
 					push((cpu.pc & 0xFF00) >> 8);
 					push(cpu.pc & 0xFF);
 					cpu.pc = addr;
+					cpu.cycles += 2; // 6 total
 					break;
 				case 0x28:
 					// plp
@@ -368,7 +384,8 @@ uint8_t cpuStep(void) {
 					cpu.p = pop();
 					cpu.pc = pop();
 					cpu.pc |= pop()<<8;
-					cpu.cycles += 4;
+					cpu.cycles = 6; // hardcoded exception, should be fixed
+					//cpu.cycles += 4;
 					break;
 				case 0x48:
 					// pha
@@ -383,7 +400,7 @@ uint8_t cpuStep(void) {
 					cpu.pc = pop();
 					cpu.pc |= pop()<<8;
 					++cpu.pc;
-					cpu.cycles += 4;
+					//cpu.cycles += 4;
 					break;
 				case 0x68:
 					// pla
@@ -615,6 +632,7 @@ uint8_t cpuStep(void) {
 							cpu.a = ror(cpu.a);
 						} else {
 							ramWriteByte(addr, ror(ramReadByte(addr)));
+							cpu.cycles += 2;
 						}
 						break;
 					case 0x8:
@@ -799,16 +817,21 @@ uint8_t cpuStep(void) {
 	}
 
 	if(!(cpu.p & I_FLAG) && cpu.irq == 0) {
-		//printf("IRQ!!! %04X\n", cpu.pc);
-		//cpuDumpState();
 		push((cpu.pc & 0xFF00) >> 8);
 		push(cpu.pc & 0xFF);
 		push((cpu.p & ~(B_FLAG)) | 0x20);
+		cpu.cycles -= 3; // account for pushes to the stack, unsure if this is accurate
 		cpu.p |= I_FLAG;
 		cpu.pc = ADDR16(IRQ_VECTOR);
-		//printf("%04X\n", cpu.pc);
 		cpu.irq = 1;
 	}
+
+
+	/*static uint8_t cycles[256] = {0};
+	if(cycles[opcode] == 0) {
+		cycles[opcode] = cpu.cycles;
+		printf("%02X: %i\n", opcode, cpu.cycles);
+	}*/
 
 	return 0;
 }
