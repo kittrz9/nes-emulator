@@ -220,6 +220,7 @@ void drawPixel(uint16_t x, uint16_t y) {
 					if(i == 0) { spriteZeroIndex = secondaryOAMIndex; }
 					memcpy(&secondaryOAM[secondaryOAMIndex*4], &ppu.oam[i*4], 4);
 					++secondaryOAMIndex;
+					drawDebugText(ppu.oam[i*4 + 3] * 2, spriteY * 2, "%i", i);
 				}
 			}
 		}
@@ -309,11 +310,10 @@ void drawPixel(uint16_t x, uint16_t y) {
 				//printf("sprite 0\n");
 				ppu.status |= PPU_STATUS_SPRITE_0;
 			}
-			if(spriteAttribs & PPU_OAM_PRIORITY && backgroundPixel != 0) {
-				continue;
-			}
 			if(spritePixel != 0) {
-				*target = bitplaneGetColor(spritePixel, paletteIndex);
+				if((spriteAttribs & PPU_OAM_PRIORITY) == 0 || backgroundPixel == 0) {
+					*target = bitplaneGetColor(spritePixel, paletteIndex);
+				}
 				break;
 			}
 		}

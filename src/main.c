@@ -32,9 +32,7 @@ int main(int argc, char** argv) {
 	uint8_t running = 1;
 
 	while(running) {
-		//uint64_t lastCycles = cpu.cycles;
 		cpuStep();
-		//printf("%i %i\n", cpu.cycles, lastCycles);
 		for(uint8_t i = 0; i < cpu.cycles; ++i) {
 			cycleCounter();
 			apuStep();
