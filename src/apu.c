@@ -56,7 +56,6 @@ struct {
 		uint8_t timerPeriod;
 		uint8_t counter;
 		uint8_t mode;
-		uint8_t lengthCounterLoop;
 		struct envStruct env;
 		uint8_t enabled;
 	} noise;
@@ -152,12 +151,12 @@ uint16_t noiseTimerLUT[] = {
 	4/2, 8/2, 16/2, 32/2, 64/2, 96/2, 128/2, 160/2, 202/2, 254/2, 380/2, 508/2, 762/2, 1016/2, 2034/2, 4068/2
 };
 float noiseGetSample(void) {
-	if(apu.noise.counter > 0 && !(apu.noise.lfsr & 1)) {
+	if(apu.noise.counter > 0 || apu.noise.env.loop) {
 		float output;
 		if(apu.noise.env.constantVolFlag) {
-			output = (apu.noise.env.volume/256.0);
+			output = (apu.noise.env.volume/512.0);
 		} else {
-			output = (apu.noise.env.decayCounter/256.0);
+			output = (apu.noise.env.decayCounter/512.0);
 		}
 		if((apu.noise.lfsr & 1) == 0) {
 			output *= -1.0f;
@@ -516,7 +515,6 @@ void noiseSetConstVolFlag(uint8_t flag) {
 
 void noiseSetLoop(uint8_t flag) {
 	apu.noise.env.loop = flag;
-	apu.noise.lengthCounterLoop = flag;
 }
 
 void noiseSetMode(uint8_t mode) {
