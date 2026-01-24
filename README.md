@@ -12,7 +12,6 @@ the controls are defined in `src/input.c`, currently they are set to be<br>
 <br>
 ## currently known issues
  - occasionally crackly audio
- - the credits in the good ending of Gimmick don't show up properly, I'm not entirely sure why, it could be an issue with cpu cycle inaccuracies or some ppu inaccuracy
 <br>
 
 ## building

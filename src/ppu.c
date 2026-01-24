@@ -381,7 +381,7 @@ void ppuStep(void) {
 			ppu.vramAddr |= ppu.t & 0x7BE0;
 		}
 	}
-	if(x == 256 && y < 240) {
+	if(x == 260 && (y < 240 || y == 261)) {
 		scanlineCounter();
 	}
 	if(x < 256 && y < 240) {

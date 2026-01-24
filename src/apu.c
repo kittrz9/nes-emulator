@@ -78,6 +78,7 @@ struct {
 		uint16_t bytesRemaining;
 		uint16_t currentAddress;
 		uint8_t irqEnable;
+		uint8_t irqSignal;
 		uint8_t loopFlag;
 		uint16_t rate;
 		uint16_t timer;
@@ -90,7 +91,7 @@ struct {
 	uint64_t cycles;
 	uint8_t mode;
 	uint8_t irqInhibit;
-
+	uint8_t irqSignal;
 } apu;
 
 uint32_t currentSample;
@@ -118,6 +119,8 @@ void initAPU(void) {
 	SDL_ResumeAudioStreamDevice(stream);
 
 	apu.noise.lfsr = 1;
+	apu.irqSignal = 1;
+	apu.dmc.irqSignal = 1;
 }
 
 // https://www.nesdev.org/wiki/APU_Pulse
@@ -313,7 +316,8 @@ void apuStep(void) {
 							apu.dmc.currentAddress = apu.dmc.sampleAddress;
 							apu.dmc.bytesRemaining = apu.dmc.sampleLength;
 						} else if(apu.dmc.irqEnable) {
-							cpu.irq = 0;
+							//cpu.irq = 0;
+							apu.dmc.irqSignal = 0;
 						}
 					}
 				} else {
@@ -339,6 +343,7 @@ void apuStep(void) {
 			apu.dmc.timer = apu.dmc.rate;
 		}
 	}
+	cpu.irq &= apu.dmc.irqSignal;
 
 	if(apu.tri.linearCounter > 0 && apu.tri.lengthCounter > 0) {
 		if(apu.tri.timer > 0) {
@@ -374,7 +379,8 @@ void apuStep(void) {
 					updateSweeps();
 					updateLengthCounters();
 					if(!apu.irqInhibit) {
-						cpu.irq = 0;
+						//cpu.irq = 0;
+						apu.irqSignal = 0;
 					}
 					apu.frameCounter = 0;
 				}
@@ -388,6 +394,7 @@ void apuStep(void) {
 				break;
 		}
 	}
+	cpu.irq &= apu.irqSignal;
 
 
 	// need to do actual resampling at some point instead of this lmao
@@ -563,6 +570,7 @@ void apuSetFrameCounterMode(uint8_t byte) {
 	apu.frameCounter = 0;
 	apu.mode = byte >> 7;
 	apu.irqInhibit = (byte >> 6) & 1;
+	apu.irqSignal = 1;
 	if(apu.mode == 1) {
 		updateLinearCounter();
 		updateEnvelopes();
@@ -578,9 +586,13 @@ uint8_t apuGetStatus(void) {
 	status |= (apu.tri.lengthCounter > 0) << 2;
 	status |= (apu.noise.counter > 0) << 3;
 	status |= (apu.dmc.bytesRemaining > 0 && !apu.dmc.silence) << 4;
+
+	status |= (apu.irqSignal == 0) << 6;
+	status |= (apu.dmc.irqSignal == 0) << 7;
 	// maybe dealing with the irq like this is probably a bad idea
 	// since setting the irq to 1 here would inhibit any irq that happened before
-	cpu.irq = 1;
+	//cpu.irq = 1;
+	apu.irqSignal = 1;
 	return status;
 }
 
@@ -602,6 +614,9 @@ T: %i %i %i",
 
 void dmcSetIrqEnable(uint8_t flag) {
 	apu.dmc.irqEnable = flag;
+	if(flag == 0) {
+		apu.dmc.irqSignal = 1;
+	}
 }
 
 void dmcSetLoop(uint8_t loop) {
