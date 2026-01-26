@@ -119,7 +119,7 @@ uint8_t ppuRAMRead(uint16_t addr) {
 		}
 		return nametables[tableIndex][addr & 0x3FF];
 	} else if(addr >= 0x3F00) {
-		return paletteRAM[addr & 0x1F];
+		return paletteRAM[addr & 0x1F] & 0x3F;
 	}
 }
 
@@ -148,6 +148,7 @@ void ppuRAMWrite(uint16_t addr, uint8_t byte) {
 		}
 		nametables[tableIndex][addr & 0x3FF] = byte;
 	} else if(addr >= 0x3F00) {
+		byte &= 0x3F;
 		if(addr % 4 == 0) { paletteRAM[(addr & 0x1F)^0x10] = byte; }
 		paletteRAM[addr & 0x1F] = byte;
 	}
@@ -385,7 +386,7 @@ void ppuStep(void) {
 		scanlineCounter();
 	}
 	if(x < 256 && y < 240) {
-		drawPixel(ppu.currentPixel % 340, ppu.currentPixel / 340);
+		drawPixel(x, y);
 	}
 
 	if(ppu.currentPixel < 340*262 - 1) {
