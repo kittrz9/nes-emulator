@@ -203,7 +203,7 @@ void updateLengthCounters(void) {
 	if(apu.pulse[1].enabled && !apu.pulse[1].loop && apu.pulse[1].counter != 0) {
 		--apu.pulse[1].counter;
 	}
-	if(apu.noise.enabled && apu.noise.counter > 0) {
+	if(apu.noise.enabled && apu.noise.counter > 0 && !apu.noise.env.loop) {
 		--apu.noise.counter;
 	}
 	if(apu.tri.enabled && !apu.tri.controlFlag && apu.tri.lengthCounter > 0) {
@@ -447,7 +447,9 @@ void pulseSetTimerHigh(uint8_t index, uint8_t timerHigh) {
 }
 
 void pulseSetLengthCounter(uint8_t index, uint8_t counter) {
-	apu.pulse[index].counter = lengthCounterLUT[counter];
+	if(apu.pulse[index].enabled) {
+		apu.pulse[index].counter = lengthCounterLUT[counter];
+	}
 	apu.pulse[index].env.startFlag = 1;
 }
 
@@ -568,7 +570,9 @@ void apuSetFrameCounterMode(uint8_t byte) {
 	apu.frameCounter = 0;
 	apu.mode = byte >> 7;
 	apu.irqInhibit = (byte >> 6) & 1;
-	apu.irqSignal = 1;
+	if(byte & 0x40) {
+		apu.irqSignal = 1;
+	}
 	if(apu.mode == 1) {
 		updateLinearCounter();
 		updateEnvelopes();
@@ -583,7 +587,7 @@ uint8_t apuGetStatus(void) {
 	status |= (apu.pulse[1].counter > 0) << 1;
 	status |= (apu.tri.lengthCounter > 0) << 2;
 	status |= (apu.noise.counter > 0) << 3;
-	status |= (apu.dmc.bytesRemaining > 0 && !apu.dmc.silence) << 4;
+	status |= (apu.dmc.bytesRemaining > 0) << 4;
 
 	status |= (apu.irqSignal == 0) << 6;
 	status |= (apu.dmc.irqSignal == 0) << 7;
@@ -639,4 +643,12 @@ void dmcSetSampleAddress(uint8_t address) {
 void dmcSetSampleLength(uint8_t length) {
 	apu.dmc.sampleLength = length*16 + 1;
 	apu.dmc.bytesRemaining = apu.dmc.sampleLength;
+}
+
+void dmcSetEnableFlag(uint8_t flag) {
+	if(!flag) {
+		apu.dmc.bytesRemaining = 0;
+	} else if(apu.dmc.bytesRemaining == 0){
+		apu.dmc.bytesRemaining = apu.dmc.sampleLength;
+	}
 }

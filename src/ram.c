@@ -178,6 +178,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			pulseSetEnableFlag(1, byte & 2);
 			triSetEnableFlag(byte & 4);
 			noiseSetEnableFlag(byte & 8);
+			dmcSetEnableFlag(byte & 0x10);
 			break;
 		default:
 			#ifdef DEBUG

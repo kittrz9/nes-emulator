@@ -47,6 +47,7 @@ void triSetControlFlag(uint8_t flag);
 
 void apuPrintDebug(void);
 
+void dmcSetEnableFlag(uint8_t flag);
 void dmcSetIrqEnable(uint8_t flag);
 void dmcSetLoop(uint8_t loop);
 void dmcSetRate(uint8_t rate);

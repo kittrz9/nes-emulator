@@ -261,10 +261,6 @@ uint8_t mmc3Read(uint16_t addr) {
 }
 
 uint8_t mmc3ChrRead(uint16_t addr) {
-	//printf("MMC3 CHR READ %04X\n", addr);
-	//uint8_t a12 = (addr>>12) & 1;
-	//if(mmc3.ppuA12Prev == 0 && a12 == 1) {
-	//mmc3.ppuA12Prev = a12;
 	if(mmc3.bankSelect & 0x80) {
 		switch((addr >> 8) / 4) {
 			case 0: // 0-3
