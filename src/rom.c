@@ -489,6 +489,68 @@ float sunsoft5bGetSample(void) {
 	return output / 16.0f; // not accurately mixing for now, just lowered it until it sounded ok
 }
 
+struct {
+	uint8_t prgBank;
+	uint8_t chrBank[4];
+	uint8_t latch[2];
+} mmc2;
+
+uint8_t mmc2Read(uint16_t addr) {
+	if(addr < 0xA000) {
+		return prgROM[addr - 0x8000 + 0x2000 * mmc2.prgBank];
+	} else {
+		return prgROM[addr - 0xA000 + prgSize - 0x6000];
+	}
+	return 0;
+}
+
+void mmc2Write(uint16_t addr, uint8_t byte) {
+	if(addr < 0xA000) { return; }
+	uint8_t bank = (addr >> 12) - 0xA;
+	switch(bank) {
+		case 0:
+			// prg bank select
+			mmc2.prgBank = byte & 0xF;
+			break;
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+			mmc2.chrBank[bank - 1] = byte & 0x1F;
+			break;
+		case 5:
+			ppu.mirror = !(byte & 1);
+			break;
+	}
+	return;
+}
+
+uint8_t mmc2ChrRead(uint16_t addr) {
+	if(addr == 0xFD8) {
+		mmc2.latch[0] = 0xFD;
+	} else if(addr == 0xFE8) {
+		mmc2.latch[0] = 0xFE;
+	} else if(addr >= 0x1FD8 && addr <= 0x1FDF) {
+		mmc2.latch[1] = 0xFD;
+	} else if(addr >= 0x1FE8 && addr <= 0x1FEF) {
+		mmc2.latch[1] = 0xFE;
+	}
+	if(addr < 0x1000) {
+		if(mmc2.latch[0] == 0xFD) {
+			return chrROM[addr + mmc2.chrBank[0] * 0x1000];
+		} else if(mmc2.latch[0] == 0xFE) {
+			return chrROM[addr + mmc2.chrBank[1] * 0x1000];
+		}
+	} else {
+		if(mmc2.latch[1] == 0xFD) {
+			return chrROM[addr - 0x1000 + mmc2.chrBank[2] * 0x1000];
+		} else if(mmc2.latch[1] == 0xFE) {
+			return chrROM[addr - 0x1000 + mmc2.chrBank[3] * 0x1000];
+		}
+	}
+}
+
+
 void setMapper(uint16_t id) {
 	switch(id) {
 		case 0x00:
@@ -541,6 +603,16 @@ void setMapper(uint16_t id) {
 			scanlineCounter = noCounter;
 			cycleCounter = sunsoft5bCycleCounter;
 			expandedAudioGetSample = sunsoft5bGetSample;
+			prgRAMEnabled = 0;
+			break;
+		case 0x09:
+			romReadByte = mmc2Read;
+			romWriteByte = mmc2Write;
+			chrReadByte = mmc2ChrRead;
+			chrWriteByte = chrWriteNormal;
+			scanlineCounter = noCounter;
+			cycleCounter = noCounter;
+			expandedAudioGetSample = noExpandedAudio;
 			prgRAMEnabled = 0;
 			break;
 		default:

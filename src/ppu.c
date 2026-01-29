@@ -227,6 +227,14 @@ void drawPixel(uint16_t x, uint16_t y) {
 		}
 	}
 	uint32_t* target = (uint32_t*)(((uint8_t*)frameBuffer->pixels + x*sizeof(uint32_t)) + y*frameBuffer->pitch);
+	// mmc2 requires an extra tile to be read at the end of the scanline
+	// this is to avoid needing to change the rest of the code to have ifs in them
+	// should probably move chr rom reading stuff into their own functions and call them in ppuStep instead
+	uint32_t asdf;
+	if(x > 256 || y > 240) {
+		target = &asdf;
+	}
+
 	uint8_t backgroundPixel = 0;
 	// incredibly messy code
 	if(ppu.mask & PPU_MASK_ENABLE_BACKGROUND && !((ppu.mask & PPU_MASK_LEFT_BACKGROUND) == 0 && x < 8)) {
@@ -385,7 +393,7 @@ void ppuStep(void) {
 	if(x == 260 && (y < 240 || y == 261)) {
 		scanlineCounter();
 	}
-	if(x < 256 && y < 240) {
+	if(x < 257 && y < 240) {
 		drawPixel(x, y);
 	}
 

@@ -315,7 +315,6 @@ void apuStep(void) {
 							apu.dmc.currentAddress = apu.dmc.sampleAddress;
 							apu.dmc.bytesRemaining = apu.dmc.sampleLength;
 						} else if(apu.dmc.irqEnable) {
-							//cpu.irq = 0;
 							apu.dmc.irqSignal = 0;
 						}
 					}
@@ -378,7 +377,6 @@ void apuStep(void) {
 					updateSweeps();
 					updateLengthCounters();
 					if(!apu.irqInhibit) {
-						//cpu.irq = 0;
 						apu.irqSignal = 0;
 					}
 					apu.frameCounter = 0;
@@ -490,7 +488,6 @@ void pulseSetConstVolFlag(uint8_t index, uint8_t flag) {
 void noiseSetTimer(uint8_t timer) {
 	timer &= 0x0F;
 	apu.noise.timerPeriod = noiseTimerLUT[timer];
-	//apu.noise.timer = noiseTimerLUT[timer];
 }
 
 void noiseSetLengthcounter(uint8_t counter) {
@@ -591,9 +588,7 @@ uint8_t apuGetStatus(void) {
 
 	status |= (apu.irqSignal == 0) << 6;
 	status |= (apu.dmc.irqSignal == 0) << 7;
-	// maybe dealing with the irq like this is probably a bad idea
-	// since setting the irq to 1 here would inhibit any irq that happened before
-	//cpu.irq = 1;
+
 	apu.irqSignal = 1;
 	return status;
 }
