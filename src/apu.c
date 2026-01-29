@@ -251,6 +251,22 @@ void updateEnvelopes(void) {
 	updateEnv(&apu.noise.env);
 }
 
+void dmcDMA(void) {
+	apu.dmc.sampleBuffer = ramReadByte(apu.dmc.currentAddress);
+	++apu.dmc.currentAddress;
+	--apu.dmc.bytesRemaining;
+	apu.dmc.sampleBitsLeft = 8;
+	apu.dmc.silence = 0;
+	if(apu.dmc.bytesRemaining == 0) {
+		if(apu.dmc.loopFlag) {
+			apu.dmc.currentAddress = apu.dmc.sampleAddress;
+			apu.dmc.bytesRemaining = apu.dmc.sampleLength;
+		} else if(apu.dmc.irqEnable) {
+			apu.dmc.irqSignal = 0;
+		}
+	}
+}
+
 void apuStep(void) {
 	for(uint8_t i = 0; i < 2; ++i) {
 		int16_t change = apu.pulse[i].timerPeriod >> apu.pulse[i].sweep.shiftCount;
@@ -302,28 +318,8 @@ void apuStep(void) {
 		if(apu.dmc.timer > 0) {
 			--apu.dmc.timer;
 		} else {
-			// memory reader
-			if(apu.dmc.sampleBitsLeft == 0) {
-				if(apu.dmc.bytesRemaining > 0) {
-					apu.dmc.sampleBuffer = ramReadByte(apu.dmc.currentAddress);
-					++apu.dmc.currentAddress;
-					--apu.dmc.bytesRemaining;
-					apu.dmc.sampleBitsLeft = 8;
-					apu.dmc.silence = 0;
-					if(apu.dmc.bytesRemaining == 0) {
-						if(apu.dmc.loopFlag) {
-							apu.dmc.currentAddress = apu.dmc.sampleAddress;
-							apu.dmc.bytesRemaining = apu.dmc.sampleLength;
-						} else if(apu.dmc.irqEnable) {
-							apu.dmc.irqSignal = 0;
-						}
-					}
-				} else {
-					apu.dmc.silence = 1;
-				}
-			}
 			// output unit
-			if(!apu.dmc.silence) {
+			if(apu.dmc.sampleBitsLeft > 0 && !apu.dmc.silence) {
 				--apu.dmc.sampleBitsLeft;
 				uint8_t delta = apu.dmc.sampleBuffer & 1;
 				apu.dmc.sampleBuffer >>= 1;
@@ -335,6 +331,14 @@ void apuStep(void) {
 					if(apu.dmc.output > 1) {
 						apu.dmc.output -= 2;
 					}
+				}
+			}
+			// memory reader
+			if(apu.dmc.sampleBitsLeft == 0) {
+				if(apu.dmc.bytesRemaining > 0) {
+					dmcDMA();
+				} else {
+					apu.dmc.silence = 1;
 				}
 			}
 
@@ -637,13 +641,15 @@ void dmcSetSampleAddress(uint8_t address) {
 
 void dmcSetSampleLength(uint8_t length) {
 	apu.dmc.sampleLength = length*16 + 1;
-	apu.dmc.bytesRemaining = apu.dmc.sampleLength;
+	//apu.dmc.bytesRemaining = apu.dmc.sampleLength;
 }
 
 void dmcSetEnableFlag(uint8_t flag) {
+	apu.dmc.irqSignal = 1;
 	if(!flag) {
 		apu.dmc.bytesRemaining = 0;
 	} else if(apu.dmc.bytesRemaining == 0){
 		apu.dmc.bytesRemaining = apu.dmc.sampleLength;
+		dmcDMA();
 	}
 }
