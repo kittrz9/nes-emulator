@@ -393,7 +393,7 @@ void ppuStep(void) {
 	if(x == 260 && (y < 240 || y == 261)) {
 		scanlineCounter();
 	}
-	if(x < 257 && y < 240) {
+	if(x < 321 && y < 240) {
 		drawPixel(x, y);
 	}
 
