@@ -110,7 +110,7 @@ uint8_t ppuRAMRead(uint16_t addr) {
 				tableIndex = 0;
 				break;
 			case MIRROR_SINGLE_SCREEN2:
-				tableIndex = 0;
+				tableIndex = 1;
 				break;
 			default:
 				printf("unimplemented mirroring mode %i\n", ppu.mirror);
@@ -139,7 +139,7 @@ void ppuRAMWrite(uint16_t addr, uint8_t byte) {
 				tableIndex = 0;
 				break;
 			case MIRROR_SINGLE_SCREEN2:
-				tableIndex = 0;
+				tableIndex = 1;
 				break;
 			default:
 				printf("unimplemented mirroring mode %i\n", ppu.mirror);
@@ -330,11 +330,11 @@ void drawPixel(uint16_t x, uint16_t y) {
 }
 
 void ppuStep(void) {
-	uint16_t x = ppu.currentPixel % 340;
-	uint16_t y = ppu.currentPixel / 340;
+	uint16_t x = ppu.currentPixel % 341;
+	uint16_t y = ppu.currentPixel / 341;
 	if(y == 261 && x == 0) {
 		ppu.status &= ~PPU_STATUS_SPRITE_0;
-		ppu.status &= ~(PPU_STATUS_VBLANK);
+		ppu.status &= ~PPU_STATUS_VBLANK;
 	}
 	if(y == 241 && x == 1) {
 		ppu.status |= PPU_STATUS_VBLANK;
@@ -397,7 +397,7 @@ void ppuStep(void) {
 		drawPixel(x, y);
 	}
 
-	if(ppu.currentPixel < 340*262 - 1) {
+	if(ppu.currentPixel < 341*261 + 340) {
 		++ppu.currentPixel;
 	} else {
 		ppu.currentPixel = 0;

@@ -173,6 +173,10 @@ uint8_t triLUT[] = {
 };
 
 float triGetSample(void) {
+	// this should ideally be changed
+	// the triangle wave should be silenced when the timer period is too low by being cut off by the high pass filter
+	// however I don't want to deal with fft stuff and any issues from potentially not being able to write samples fast enough because it's doing signal processing
+	if(apu.tri.timerPeriod == 0) { return 0.0f; }
 	return ((triLUT[apu.tri.progress]/15.0f)-0.5f)/8.0f;
 }
 

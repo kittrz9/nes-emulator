@@ -68,8 +68,8 @@ void branch(uint8_t cond, int8_t offset) {
 	if(cond) {
 		uint8_t oldPage = cpu.pc >> 8;
 		cpu.pc += (int8_t)offset;
-		if(cpu.pc>>8 != oldPage) { cpu.cycles += 1; }
-		cpu.cycles += 1;
+		if(cpu.pc>>8 != oldPage) { ++cpu.cycles; }
+		++cpu.cycles;
 	}
 	return;
 }
@@ -279,11 +279,14 @@ uint8_t cpuStep(void) {
 					//addr = INDIR_INDEX_Y_ADDR;
 					addr = ramReadByte(ARG8);
 					addr |= (ramReadByte((ARG8+1)&0xFF))<<8;
+					uint8_t startPage = addr >> 8;
 					addr += cpu.y;
 					++cpu.pc;
 					cpu.cycles += 3;
 					if(opcode == 0x91) {
 						++cpu.cycles; // hardcoded exception for sta
+					} else if(startPage != addr >> 8) {
+						++cpu.cycles;
 					}
 					break;
 				case 2:
@@ -310,11 +313,16 @@ uint8_t cpuStep(void) {
 			} else {
 				// absolute y indexed
 				addr = ABS_INDEX_ADDR(cpu.y);
+				uint8_t startPage = ABS_ADDR >> 8;
+				if(opcode == 0x99 || startPage != addr >> 8) {
+					++cpu.cycles;
+				}
 				cpu.pc += 2;
 				cpu.cycles += 2;
 			}
 			break;
 		case 7:
+			uint8_t startPage = ABS_ADDR >> 8;
 			if(instrType > 1 && opcode > 0x80 && opcode < 0xC0) {
 				// absolute y indexed
 				addr = ABS_INDEX_ADDR(cpu.y);
@@ -329,6 +337,8 @@ uint8_t cpuStep(void) {
 			cpu.cycles += 2;
 			if(opcode == 0x9D || opcode == 0x99) {
 				++cpu.cycles; // hardcoded exception for sta
+			} else if(startPage != addr >> 8) {
+				++cpu.cycles;
 			}
 			break;
 	}
@@ -356,7 +366,7 @@ uint8_t cpuStep(void) {
 					push(cpu.p | B_FLAG | 0x20);
 					cpu.p |= I_FLAG;
 					cpu.pc = ADDR16(IRQ_VECTOR);
-					//cpu.cycles += 5;
+					cpu.cycles += 2;
 					break;
 				case 0x08:
 					// php
@@ -827,9 +837,9 @@ uint8_t cpuStep(void) {
 	cpu.irq = 1;
 
 
-	/*static uint8_t cycles[256] = {0};
-	if(cycles[opcode] == 0) {
-		cycles[opcode] = cpu.cycles;
+	/*static uint8_t cycles[256][5] = {0};
+	if(cycles[opcode][cpu.cycles - 2] == 0) {
+		cycles[opcode][cpu.cycles - 2] = 1;
 		printf("%02X: %i\n", opcode, cpu.cycles);
 	}*/
 

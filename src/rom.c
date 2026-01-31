@@ -462,9 +462,11 @@ uint8_t sunsoft5bChrRead(uint16_t addr) {
 void sunsoft5bCycleCounter(void) {
 	// I should be checking the irq counter enable flag, but that ends up making the hud at the bottom of the screen in gimmick have slight issues
 	// presumably there's some instruction(s) that are taking too many cycles than they should
-	--sunsoft5b.irqCounter;
-	if(sunsoft5b.irqEnable && sunsoft5b.irqCounter == 0xFFFF) {
-		sunsoft5b.irqSignal = 0;
+	if(sunsoft5b.irqCounterEnable) {
+		--sunsoft5b.irqCounter;
+		if(sunsoft5b.irqEnable && sunsoft5b.irqCounter == 0xFFFF) {
+			sunsoft5b.irqSignal = 0;
+		}
 	}
 	cpu.irq &= sunsoft5b.irqSignal;
 	++sunsoft5b.cycles;
@@ -550,6 +552,20 @@ uint8_t mmc2ChrRead(uint16_t addr) {
 	}
 }
 
+uint8_t anromBank;
+
+uint8_t anromReadByte(uint16_t addr) {
+	return prgROM[addr - 0x8000 + anromBank*0x8000];
+}
+
+void anromWriteByte(uint16_t addr, uint8_t byte) {
+	anromBank = byte & 0x7;
+	if(byte & 0x10) {
+		ppu.mirror = MIRROR_SINGLE_SCREEN2;
+	} else {
+		ppu.mirror = MIRROR_SINGLE_SCREEN1;
+	}
+}
 
 void setMapper(uint16_t id) {
 	switch(id) {
@@ -609,6 +625,16 @@ void setMapper(uint16_t id) {
 			romReadByte = mmc2Read;
 			romWriteByte = mmc2Write;
 			chrReadByte = mmc2ChrRead;
+			chrWriteByte = chrWriteNormal;
+			scanlineCounter = noCounter;
+			cycleCounter = noCounter;
+			expandedAudioGetSample = noExpandedAudio;
+			prgRAMEnabled = 0;
+			break;
+		case 0x07:
+			romReadByte = anromReadByte;
+			romWriteByte = anromWriteByte;
+			chrReadByte = chrReadNormal;
 			chrWriteByte = chrWriteNormal;
 			scanlineCounter = noCounter;
 			cycleCounter = noCounter;

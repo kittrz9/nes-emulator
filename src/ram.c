@@ -199,7 +199,7 @@ uint8_t ramReadByte(uint16_t addr) {
 			{
 				// clear vblank flag after it's read
 				uint8_t tmp = ppu.status;
-				ppu.status &= ~(0x80);
+				ppu.status &= ~PPU_STATUS_VBLANK;
 				ppu.w = 0;
 				return tmp;
 			}

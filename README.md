@@ -1,7 +1,7 @@
 # NES emulator
 a simple NES emulator written in C<br>
 <br>
-the only currently implemented mappers are NROM, MMC1, UNROM, MMC3, MMC2, and Sunsoft 5B (though the 5B's expanded audio only has enough implemented for Gimmick).<br>
+the only currently implemented mappers are NROM, MMC1, UNROM, MMC3, MMC2, ANROM, and Sunsoft 5B (though the 5B's expanded audio only has enough implemented for Gimmick).<br>
 <br>
 the controls are defined in `src/input.c`, currently they are set to be<br>
 `A - Z`<br>
@@ -12,6 +12,7 @@ the controls are defined in `src/input.c`, currently they are set to be<br>
 <br>
 ## currently known issues
  - occasionally crackly audio
+ - battletoads crashes when entering a level, probably due to inaccurate timing
 <br>
 
 ## building
