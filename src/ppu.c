@@ -332,9 +332,10 @@ void drawPixel(uint16_t x, uint16_t y) {
 void ppuStep(void) {
 	uint16_t x = ppu.currentPixel % 341;
 	uint16_t y = ppu.currentPixel / 341;
-	if(y == 261 && x == 0) {
+	if(y == 261 && x == 1) {
 		ppu.status &= ~PPU_STATUS_SPRITE_0;
 		ppu.status &= ~PPU_STATUS_VBLANK;
+		ppu.status &= ~PPU_STATUS_SPRITE_OVERFLOW;
 	}
 	if(y == 241 && x == 1) {
 		ppu.status |= PPU_STATUS_VBLANK;

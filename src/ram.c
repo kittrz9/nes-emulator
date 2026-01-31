@@ -28,6 +28,13 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 	switch(addr) {
 		case 0x2000:
 			//printf("%04X %i %02X\n", cpu.pc, ppu.currentPixel / 340, byte);
+			if(byte & PPU_CTRL_ENABLE_VBLANK && (ppu.control & PPU_CTRL_ENABLE_VBLANK) == 0 && ppu.status & PPU_STATUS_VBLANK) {
+				push((cpu.pc & 0xFF00) >> 8);
+				push(cpu.pc & 0xFF);
+				push((cpu.p & ~(B_FLAG)) | 0x20);
+				cpu.p |= I_FLAG;
+				cpu.pc = ADDR16(NMI_VECTOR);
+			}
 			ppu.control = byte;
 			ppu.t &= ~0xC00;
 			ppu.t |= (byte & 3) << 10;

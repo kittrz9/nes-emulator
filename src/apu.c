@@ -654,6 +654,7 @@ void dmcSetEnableFlag(uint8_t flag) {
 		apu.dmc.bytesRemaining = 0;
 	} else if(apu.dmc.bytesRemaining == 0){
 		apu.dmc.bytesRemaining = apu.dmc.sampleLength;
+		apu.dmc.currentAddress = apu.dmc.sampleAddress;
 		dmcDMA();
 	}
 }
