@@ -337,7 +337,7 @@ uint8_t cpuStep(void) {
 			cpu.cycles += 2;
 			if(opcode == 0x9D || opcode == 0x99) {
 				++cpu.cycles; // hardcoded exception for sta
-			} else if(startPage != addr >> 8) {
+			} else if((instrType != 2 || opcode == 0xBE) && startPage != addr >> 8) {
 				++cpu.cycles;
 			}
 			break;
