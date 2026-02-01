@@ -151,7 +151,7 @@ uint16_t noiseTimerLUT[] = {
 	4/2, 8/2, 16/2, 32/2, 64/2, 96/2, 128/2, 160/2, 202/2, 254/2, 380/2, 508/2, 762/2, 1016/2, 2034/2, 4068/2
 };
 float noiseGetSample(void) {
-	if(apu.noise.counter > 0 || apu.noise.env.loop) {
+	if(apu.noise.counter > 0) {
 		float output;
 		if(apu.noise.env.constantVolFlag) {
 			output = (apu.noise.env.volume/512.0);
