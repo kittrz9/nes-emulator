@@ -25,6 +25,7 @@ typedef struct {
 	uint8_t s;
 	uint8_t p;
 	uint8_t irq;
+	uint8_t nmi;
 	uint64_t cycles;
 } cpu_t;
 

@@ -48,6 +48,7 @@ void cpuInit(void) {
 	cpu.s = 0xFD;
 	cpu.p |= I_FLAG;
 	cpu.irq = 1;
+	cpu.nmi = 1;
 	return;
 }
 
@@ -836,6 +837,14 @@ uint8_t cpuStep(void) {
 	}
 	cpu.irq = 1;
 
+	if(cpu.nmi == 0) {
+		push((cpu.pc & 0xFF00) >> 8);
+		push(cpu.pc & 0xFF);
+		push((cpu.p & ~(B_FLAG)) | 0x20);
+		cpu.p |= I_FLAG;
+		cpu.pc = ADDR16(NMI_VECTOR);
+	}
+	cpu.nmi = 1;
 
 	/*static uint8_t cycles[256][5] = {0};
 	if(cycles[opcode][cpu.cycles - 2] == 0) {

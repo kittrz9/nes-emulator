@@ -336,18 +336,16 @@ void ppuStep(void) {
 		ppu.status &= ~PPU_STATUS_SPRITE_0;
 		ppu.status &= ~PPU_STATUS_VBLANK;
 		ppu.status &= ~PPU_STATUS_SPRITE_OVERFLOW;
+		ppu.nmiHappened = 0;
 	}
 	if(y == 241 && x == 1) {
 		ppu.status |= PPU_STATUS_VBLANK;
-		if(ppu.control & PPU_CTRL_ENABLE_VBLANK) {
-			push((cpu.pc & 0xFF00) >> 8);
-			push(cpu.pc & 0xFF);
-			push((cpu.p & ~(B_FLAG)) | 0x20);
-			cpu.p |= I_FLAG;
-			cpu.pc = ADDR16(NMI_VECTOR);
-		}
 		apuPrintDebug();
 		render();
+	}
+	if(!ppu.nmiHappened && ppu.control & PPU_CTRL_ENABLE_VBLANK && ppu.status & PPU_STATUS_VBLANK) {
+		cpu.nmi = 0;
+		ppu.nmiHappened = 1;
 	}
 	// https://www.nesdev.org/wiki/PPU_scrolling#Wrapping_around
 	if(ppu.mask & (PPU_MASK_ENABLE_BACKGROUND | PPU_MASK_ENABLE_SPRITES)) {

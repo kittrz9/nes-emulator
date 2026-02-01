@@ -59,6 +59,7 @@ typedef struct {
 	uint8_t readBuffer;
 
 	uint32_t currentPixel;
+	uint8_t nmiHappened;
 } ppu_t;
 
 extern ppu_t ppu;
