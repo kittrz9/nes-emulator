@@ -13,6 +13,13 @@
 
 #include "debug.h"
 
+// https://www.nesdev.org/wiki/PPU_scrolling
+#define FINE_Y 0x7000
+#define NAMETABLE_Y 0x800
+#define NAMETABLE_X 0x400
+#define COARSE_Y 0x3E0
+#define COARSE_X 0x1F
+
 ppu_t ppu;
 
 uint8_t fpsUncap = 0;
@@ -239,23 +246,25 @@ void drawPixel(uint16_t x, uint16_t y) {
 	// incredibly messy code
 	if(ppu.mask & PPU_MASK_ENABLE_BACKGROUND && !((ppu.mask & PPU_MASK_LEFT_BACKGROUND) == 0 && x < 8)) {
 		// https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
-		uint16_t tileAddr = 0x2000 | (ppu.vramAddr & 0xFFF);
-		uint16_t attribAddr = 0x23C0 | (ppu.vramAddr & 0xC00) | ((ppu.vramAddr >> 4) & 0x38) | ((ppu.vramAddr >> 2) & 0x7);
-		uint8_t coarseX = ppu.vramAddr & 0x1F;
-		uint8_t coarseY = (ppu.vramAddr >> 5) & 0x1F;
+		uint8_t coarseX = ppu.vramAddr & COARSE_X;
+		uint8_t coarseY = (ppu.vramAddr & COARSE_Y) >> 5;
 		uint8_t fineX = ppu.x + (x % 8);
 		uint8_t fineY = (ppu.vramAddr >> 12);
+
+		uint16_t tileAddr = 0x2000 | (ppu.vramAddr & 0xFFF);
+		uint16_t attribAddr = 0x23C0 | (ppu.vramAddr & (NAMETABLE_X | NAMETABLE_Y)) | ((coarseY & 0x1C) << 1) | (coarseX >> 2);
 		if(fineX > 7) {
 			if(coarseX % 4 == 3) {
 				attribAddr += 1;
 			}
-			if(coarseX < 0x1F) {
+			if(coarseX < 31) {
 				++coarseX;
 				++tileAddr;
 			} else {
+				// move into the next nametable
 				coarseX = 0;
-				attribAddr += 0x400 - 0x1F/4 - 1;
-				tileAddr += 0x400 - 0x1F; // move into the next nametable
+				attribAddr += NAMETABLE_X - 0x1F/4 - 1;
+				tileAddr += NAMETABLE_X - 0x1F;
 				if(tileAddr >= 0x3000) {
 					tileAddr -= 0x1000;
 					attribAddr -= 0x1000;
@@ -352,41 +361,40 @@ void ppuStep(void) {
 		if(y < 240 || y == 261) {
 			if(x == 256) {
 				// increment ppu.vramAddr vertically
-				if((ppu.vramAddr & 0x7000) != 0x7000) {
-					ppu.vramAddr += 0x1000;
+				if((ppu.vramAddr & FINE_Y) != 0x7000) {
+					ppu.vramAddr += 0x1000; // increment fine y
 				} else {
-					ppu.vramAddr &= ~0x7000;
-					uint8_t coarseY = (ppu.vramAddr & 0x3E0) >> 5;
+					ppu.vramAddr &= ~FINE_Y;
+					uint8_t coarseY = (ppu.vramAddr & COARSE_Y) >> 5;
 					if(coarseY == 29) {
-						coarseY = 0;
-						ppu.vramAddr ^= 0x800;
+						ppu.vramAddr &= ~COARSE_Y;
+						ppu.vramAddr ^= NAMETABLE_Y;
 					} else if(coarseY == 31) {
-						coarseY = 0;
+						ppu.vramAddr &= ~COARSE_Y;
 					} else {
-						++coarseY;
+						ppu.vramAddr += 0x20; // increment coarse y
 					}
-					ppu.vramAddr = (ppu.vramAddr & ~0x3E0) | (coarseY << 5);
 				}
 			}
 			if(x == 257) {
 				// copy horizontal bits from ppu.t to ppu.vramAddr
-				ppu.vramAddr &= ~0x41F;
-				ppu.vramAddr |= ppu.t & 0x41F;
+				ppu.vramAddr &= ~(COARSE_X | NAMETABLE_X);
+				ppu.vramAddr |= ppu.t & (COARSE_X | NAMETABLE_X);
 			}
 			if(x != 0 && x % 8 == 0 && x <= 256) {
 				// increment ppu.vramAddr horizontally
-				if((ppu.vramAddr & 0x1F) == 31) {
-					ppu.vramAddr &= ~0x1F;
-					ppu.vramAddr ^= 0x400;
+				if((ppu.vramAddr & COARSE_X) == 31) {
+					ppu.vramAddr &= ~COARSE_X;
+					ppu.vramAddr ^= NAMETABLE_X;
 				} else {
-					++ppu.vramAddr;
+					++ppu.vramAddr; // increment coarse x
 				}
 			}
 		}
 		if(y == 261 && x >= 280 && x <= 304) {
 			// copy vertical bits from ppu.t to ppu.vramAddr
-			ppu.vramAddr &= ~0x7BE0;
-			ppu.vramAddr |= ppu.t & 0x7BE0;
+			ppu.vramAddr &= ~(FINE_Y | NAMETABLE_Y | COARSE_Y);
+			ppu.vramAddr |= ppu.t & (FINE_Y | NAMETABLE_Y | COARSE_Y);
 		}
 	}
 	if(x == 260 && (y < 240 || y == 261)) {
@@ -396,7 +404,7 @@ void ppuStep(void) {
 		drawPixel(x, y);
 	}
 
-	if(ppu.currentPixel < 341*261 + 340) {
+	if(ppu.currentPixel < 341*262 - 1) {
 		++ppu.currentPixel;
 	} else {
 		ppu.currentPixel = 0;

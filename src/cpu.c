@@ -831,7 +831,6 @@ uint8_t cpuStep(void) {
 		push((cpu.pc & 0xFF00) >> 8);
 		push(cpu.pc & 0xFF);
 		push((cpu.p & ~(B_FLAG)) | 0x20);
-		//cpu.cycles -= 3; // account for pushes to the stack, unsure if this is accurate
 		cpu.p |= I_FLAG;
 		cpu.pc = ADDR16(IRQ_VECTOR);
 	}
