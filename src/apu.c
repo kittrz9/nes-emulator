@@ -18,7 +18,7 @@ SDL_AudioStream* stream = NULL;
 
 #define CPU_FREQ 1789773
 #define SAMPLE_RATE 44100
-#define BUFFER_SIZE SAMPLE_RATE/30
+#define BUFFER_SIZE SAMPLE_RATE/20
 
 struct envStruct {
 	uint8_t constantVolFlag;
@@ -96,6 +96,41 @@ struct {
 uint32_t currentSample;
 float samples[BUFFER_SIZE];
 
+struct callbackPointers {
+	uint32_t* currentSample;
+	float* samples;
+};
+
+// https://github.com/libsdl-org/SDL/blob/main/examples/audio/02-simple-playback-callback/simple-playback-callback.c
+void audioCallback(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount) {
+	int samplesQueued = SDL_GetAudioStreamQueued(stream)/sizeof(float);
+	if(samplesQueued > BUFFER_SIZE) {
+		SDL_ClearAudioStream(stream); // this is to attempt to fix some audio stuttering, I think this fixed it but I'm not sure
+	}
+	//printf("%i\n", samplesQueued);
+	struct callbackPointers* p = (struct callbackPointers*)userdata;
+	additionalAmount /= sizeof(float);
+	float lastSample = 0;
+	#define FALLBACK_BUFFER_SIZE 128
+	static float fallbackBuffer[FALLBACK_BUFFER_SIZE];
+	if(*p->currentSample > 0 && additionalAmount > 0) {
+		SDL_PutAudioStreamData(stream, p->samples, *p->currentSample * sizeof(float));
+		lastSample = samples[*p->currentSample - 1];
+		additionalAmount -= *p->currentSample;
+		if(additionalAmount > 0) {
+			//printf("out of queued samples! need %i more, using fallback buffer\n", additionalAmount);
+			for(uint32_t i = 0; i < FALLBACK_BUFFER_SIZE; ++i) {
+				fallbackBuffer[i] = lastSample;
+			}
+		}
+		*p->currentSample = 0;
+	}
+	while(additionalAmount > 0) {
+		SDL_PutAudioStreamData(stream, fallbackBuffer, FALLBACK_BUFFER_SIZE*sizeof(float));
+		additionalAmount -= FALLBACK_BUFFER_SIZE;
+	}
+}
+
 void initAPU(void) {
 	SDL_AudioSpec spec;
 
@@ -108,7 +143,12 @@ void initAPU(void) {
 	spec.format = SDL_AUDIO_F32;
 	spec.freq = SAMPLE_RATE;
 
-	stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
+	static struct callbackPointers p = {
+		.currentSample = &currentSample,
+		.samples = samples
+	};
+
+	stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, audioCallback, &p);
 	if(stream == NULL) {
 		printf("could not create audio stream\n");
 		exit(1);
@@ -290,7 +330,7 @@ void apuStep(void) {
 			apu.pulse[i].mute = 0;
 		}
 	}
-	if(apu.cycles%2 == 0) {
+	if(apu.frameCounter%2 == 0) {
 		if(apu.pulse[0].timer > 0) {
 			--apu.pulse[0].timer;
 		} else {
@@ -365,7 +405,7 @@ void apuStep(void) {
 	++apu.cycles;
 	++apu.frameCounter;
 
-	if(apu.frameCounter % (3728*2)== 0) {
+	if(apu.frameCounter % (3728*2) == 0) {
 		switch(apu.frameCounter / (3728*2)) {
 			case 1:
 			case 3:
@@ -413,17 +453,10 @@ void apuStep(void) {
 			samples[currentSample] += dmcGetSample();
 			samples[currentSample] += expandedAudioGetSample();
 			++currentSample;
+		} else {
+			SDL_FlushAudioStream(stream);
 		}
-	}
-	int bytesQueued = SDL_GetAudioStreamQueued(stream);
-	if(bytesQueued < BUFFER_SIZE * sizeof(float)) {
-		/*static uint32_t bytesMin = BUFFER_SIZE * sizeof(float) + 1;
-		if(bytesQueued < bytesMin) {
-			bytesMin = bytesQueued;
-			printf("%i\n", bytesMin);
-		}*/
-		SDL_PutAudioStreamData(stream, samples, sizeof(float) * currentSample);
-		currentSample = 0;
+		apu.cycles = 0;
 	}
 }
 
