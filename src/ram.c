@@ -9,7 +9,9 @@
 #include "apu.h"
 #include "input.h"
 
-uint8_t cpuRAM[0x10000];
+uint8_t cpuRAM[0x800];
+
+uint8_t prgRAM[0x2000];
 
 // https://www.nesdev.org/wiki/CPU_memory_map
 uint16_t addrMap(uint16_t addr) {
@@ -25,6 +27,16 @@ uint16_t addrMap(uint16_t addr) {
 }
 void ramWriteByte(uint16_t addr, uint8_t byte) {
 	addr = addrMap(addr);
+	if(prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
+		prgRAM[addr - 0x6000] = byte;
+		return;
+	} else if(addr >= 0x6000) {
+		romWriteByte(addr, byte);
+		return;
+	} else if(addr < 0x800) {
+		cpuRAM[addr] = byte;
+		return;
+	}
 	switch(addr) {
 		case 0x2000:
 			//printf("%04X %i %02X\n", cpu.pc, ppu.currentPixel / 340, byte);
@@ -185,19 +197,20 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			dmcSetEnableFlag(byte & 0x10);
 			break;
 		default:
-			#ifdef DEBUG
-				printf("writing byte %02X to %04X\n", byte, addr);
-			#endif
-			if(addr >= 0x8000) {
-				romWriteByte(addr, byte);
-			} else {
-				cpuRAM[addr] = byte;
-			}
+			// open bus
+			break;
 	}
 }
 
 uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
+	if(prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
+		return prgRAM[addr - 0x6000];;
+	} else if(addr >= 0x6000) {
+		return romReadByte(addr);
+	} else if(addr < 0x800) {
+		return cpuRAM[addr];
+	}
 	switch(addr) {
 		case 0x2002:
 			{
@@ -251,26 +264,8 @@ uint8_t ramReadByte(uint16_t addr) {
 		case 0x4017:
 			return pollController(1);;
 		default:
-			// workaround for mappers that use the prg ram region
-			if(addr >= 0x6000 && addr < 0x8000) {
-				if(prgRAMEnabled) {
-					return cpuRAM[addr];
-				} else {
-					return romReadByte(addr);
-				}
-			}
-
-			if(addr >= 0x8000) {
-				#ifdef DEBUG
-					printf("read byte %02X from ROM %04X\n", romReadByte(addr), addr);
-				#endif
-				return romReadByte(addr);
-			} else {
-				#ifdef DEBUG
-					printf("read byte %02X from %04X\n", cpuRAM[addr], addr);
-				#endif
-				return cpuRAM[addr];
-			}
+			// open bus
+			return 0;
 	}
 	return 0;
 }

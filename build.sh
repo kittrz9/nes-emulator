@@ -6,8 +6,8 @@ SDL_VERSION="3.4.0"
 
 if [ "$DEBUG" ]; then
 	#DEFINES="-DDEBUG -DUNCAP_FPS"
-	CFLAGS="-g -fsanitize=address"
-	LDFLAGS="-g -fsanitize=address"
+	CFLAGS="-g -fsanitize=address -fsanitize=undefined"
+	LDFLAGS="-g -fsanitize=address -fsanitize=undefined"
 fi
 
 [ "$CC" ] || CC=gcc
