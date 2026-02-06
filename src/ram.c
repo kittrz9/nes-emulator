@@ -82,9 +82,9 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			break;
 		case 0x4014:
 			{
-				uint8_t* oamData = &cpuRAM[byte << 8];
 				for(uint16_t i = 0; i < 256; ++i) {
-					ppu.oam[i] = oamData[i];
+					// could potentially do wacky stuff if it gets into the apu/ppu register areas
+					ppu.oam[i] = ramReadByte((byte << 8) + i);
 				}
 			}
 			break;
