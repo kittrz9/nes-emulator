@@ -34,7 +34,6 @@ int main(int argc, char** argv) {
 	while(running) {
 		cpuStep();
 		for(uint8_t i = 0; i < cpu.cycles; ++i) {
-			ramEventStep();
 			cycleCounter();
 			apuStep();
 			for(uint8_t j = 0; j < 3; ++j) {
