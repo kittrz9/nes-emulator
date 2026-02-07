@@ -12,7 +12,7 @@ the controls are defined in `src/input.c`, currently they are set to be<br>
 <br>
 ## currently known issues
  - occasionally crackly audio
- - battletoads crashes when entering a level, probably due to inaccurate timing
+ - battletoads crashes in the intro, probably due to inaccurate timing
 <br>
 
 ## building

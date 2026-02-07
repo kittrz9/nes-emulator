@@ -13,6 +13,151 @@ uint8_t cpuRAM[0x800];
 
 uint8_t prgRAM[0x2000];
 
+// janky workaround to not having cycle accurate timings to things
+// probably still horribly inaccurate
+// could maybe change this to a priority queue system and make it work with nmis and stuff like that
+typedef enum {
+	EVENT_NONE,
+
+	EVENT_CPU_RAM_WRITE,
+	EVENT_PRG_RAM_WRITE, // ideally prg ram should be handled by the mapper implementation, since prg ram doesn't have to be mapped to 0x6000-0x7FFF
+	EVENT_ROM_WRITE,
+
+	EVENT_PPU_CTRL_WRITE,
+	EVENT_PPU_MASK_WRITE,
+	EVENT_OAM_ADDR_WRITE,
+	EVENT_OAM_DATA_WRITE,
+	EVENT_PPU_SCROLL_WRITE,
+	EVENT_PPU_ADDR_WRITE,
+	EVENT_PPU_DATA_WRITE,
+	EVENT_OAM_DMA_WRITE,
+
+	EVENT_PPU_STATUS_READ,
+	EVENT_PPU_DATA_READ,
+} ramEventType;
+
+typedef struct {
+	ramEventType type;
+	uint16_t addr;
+	uint8_t byte;
+	uint8_t delay; // amount of cycles until it triggers the event
+} ramEvent;
+
+//ramEvent currentEvent; // could maybe turn this into a queue if necessary
+
+// arbitrary size
+#define EVENT_QUEUE_SIZE 4
+ramEvent eventQueue[EVENT_QUEUE_SIZE];
+uint8_t eventQueueIndex;
+uint8_t eventQueueTop;
+
+void pushRAMEvent(ramEvent e) {
+	if(e.type == EVENT_NONE) { return; }
+	++e.delay;
+	eventQueue[eventQueueTop] = e;
+	++eventQueueTop;
+	eventQueueTop %= EVENT_QUEUE_SIZE;
+}
+
+void ramEventStep(void) {
+	if(eventQueueIndex == eventQueueTop) { return; }
+	ramEvent* currentEvent = &eventQueue[eventQueueIndex];
+	if(currentEvent->type == EVENT_NONE || currentEvent->delay == 0) { ++eventQueueIndex; eventQueueIndex %= EVENT_QUEUE_SIZE; return; }
+	--currentEvent->delay;
+	if(currentEvent->delay == 0) {
+		uint16_t addr = currentEvent->addr;
+		uint8_t byte = currentEvent->byte;
+		switch(currentEvent->type) {
+			case EVENT_CPU_RAM_WRITE:
+				cpuRAM[addr] = byte;
+				break;
+			case EVENT_PRG_RAM_WRITE:
+				if(prgRAMEnabled) {
+					prgRAM[addr - 0x6000] = byte;
+				} else {
+					romWriteByte(addr, byte);
+				}
+				break;
+			case EVENT_ROM_WRITE:
+				romWriteByte(addr, byte);
+				break;
+			case EVENT_PPU_CTRL_WRITE:
+				if(byte & PPU_CTRL_ENABLE_VBLANK && (ppu.control & PPU_CTRL_ENABLE_VBLANK) == 0 && ppu.status & PPU_STATUS_VBLANK) {
+					ppu.nmiHappened = 0;
+				}
+
+				ppu.control = byte;
+				ppu.t &= ~0xC00;
+				ppu.t |= (byte & 3) << 10;
+				break;
+			case EVENT_PPU_MASK_WRITE:
+				ppu.mask = byte;
+				break;
+			case EVENT_OAM_ADDR_WRITE:
+				ppu.oamAddr = byte;
+				break;
+			case EVENT_OAM_DATA_WRITE:
+				ppu.oam[ppu.oamAddr] = byte;
+				++ppu.oamAddr;
+				break;
+			case EVENT_PPU_SCROLL_WRITE:
+				if(!ppu.w) {
+					ppu.t &= ~0x1F;
+					ppu.t |= byte >> 3;
+					ppu.x = byte & 0x7;
+				} else {
+					ppu.t &= ~0x3E0;
+					ppu.t |= (byte & 0xF8) << 2;
+					ppu.t &= ~0x7000;
+					ppu.t |= (byte & 0x7) << 12;
+				}
+				ppu.w = !ppu.w;
+				break;
+			case EVENT_PPU_ADDR_WRITE:
+				if(!ppu.w) {
+					ppu.t &= ~0xFF00;
+					ppu.t |= (byte & 0x3F) << 8;
+				} else {
+					ppu.t &= 0xFF00;
+					ppu.t |= byte;
+					ppu.vramAddr = ppu.t;
+				}
+				ppu.w = !ppu.w;
+				break;
+			case EVENT_PPU_DATA_WRITE:
+				ppuRAMWrite(ppu.vramAddr, byte);
+				ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
+				break;
+			case EVENT_OAM_DMA_WRITE:
+				for(uint16_t i = 0; i < 256; ++i) {
+					// could potentially do wacky stuff if it gets into the apu/ppu register areas
+					ppu.oam[i] = ramReadByte((byte << 8) + i);
+				}
+				break;
+			case EVENT_PPU_STATUS_READ:
+				ppu.status &= ~PPU_STATUS_VBLANK;
+				ppu.w = 0;
+				break;
+			case EVENT_PPU_DATA_READ:
+				ppu.readBuffer = ppuRAMRead(ppu.vramAddr);
+				if(ppu.control & 0x4) {
+					ppu.vramAddr += 32;
+				} else {
+					ppu.vramAddr += 1;
+				}
+				break;
+			default:
+				printf("unimplemented ram event %i\n", currentEvent->type);
+				exit(1);
+		}
+
+		currentEvent->type = EVENT_NONE;
+
+		++eventQueueIndex;
+		eventQueueIndex %= EVENT_QUEUE_SIZE;
+	}
+}
+
 // https://www.nesdev.org/wiki/CPU_memory_map
 uint16_t addrMap(uint16_t addr) {
 	// weird ram mirroring
@@ -27,66 +172,46 @@ uint16_t addrMap(uint16_t addr) {
 }
 void ramWriteByte(uint16_t addr, uint8_t byte) {
 	addr = addrMap(addr);
-	if(prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
-		prgRAM[addr - 0x6000] = byte;
-		return;
+	ramEvent e;
+	e.delay = cpu.cycles + 1;
+	e.addr = addr;
+	e.byte = byte;
+	e.type = EVENT_NONE;
+	if(addr >= 0x8000) {
+		e.type = EVENT_ROM_WRITE;
 	} else if(addr >= 0x6000) {
-		romWriteByte(addr, byte);
-		return;
+		e.type = EVENT_PRG_RAM_WRITE;
 	} else if(addr < 0x800) {
 		cpuRAM[addr] = byte;
-		return;
+		//e.type = EVENT_CPU_RAM_WRITE;
 	}
+	//e.delay = 1;
 	switch(addr) {
 		case 0x2000:
-			//printf("%04X %i %02X\n", cpu.pc, ppu.currentPixel / 340, byte);
-			if(byte & PPU_CTRL_ENABLE_VBLANK && (ppu.control & PPU_CTRL_ENABLE_VBLANK) == 0 && ppu.status & PPU_STATUS_VBLANK) {
-				ppu.nmiHappened = 0;
-			}
-
-			ppu.control = byte;
-			ppu.t &= ~0xC00;
-			ppu.t |= (byte & 3) << 10;
+			e.type = EVENT_PPU_CTRL_WRITE;
+			e.delay = 1; // janky workaround to the janky workaround to fix the nmi control test
 			break;
 		case 0x2001:
-			ppu.mask = byte;
+			e.type = EVENT_PPU_MASK_WRITE;
 			break;
 		case 0x2003:
-			ppu.oamAddr = byte;
+			e.type = EVENT_OAM_ADDR_WRITE;
 			break;
 		case 0x2004:
-			ppu.oam[ppu.oamAddr] = byte;
-			++ppu.oamAddr;
+			e.type = EVENT_OAM_DATA_WRITE;
+			e.addr = ppu.oamAddr;
 			break;
 		case 0x2006:
-			//*((uint8_t*)&ppu.vramAddr + (1 - ppu.w)) = byte;
-			if(!ppu.w) {
-				ppu.t &= ~0xFF00;
-				ppu.t |= (byte & 0x3F) << 8;
-			} else {
-				ppu.t &= 0xFF00;
-				ppu.t |= byte;
-				ppu.vramAddr = ppu.t;
-			}
-			#ifdef DEBUG
-				printf("ppu addr set to %04X\n", ppu.vramAddr);
-			#endif
-			ppu.w = !ppu.w;
+			e.type = EVENT_PPU_ADDR_WRITE;
+			e.delay = 1; // another janky workaround to fix the read buffer
 			break;
 		case 0x2007:
-			#ifdef DEBUG
-				printf("writing %02X into ppu %04X\n", byte, ppu.vramAddr);
-			#endif
-			ppuRAMWrite(ppu.vramAddr % 0x4000, byte);
-			ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
+			e.type = EVENT_PPU_DATA_WRITE;
+			e.addr = ppu.vramAddr;
+			e.delay = 1;
 			break;
 		case 0x4014:
-			{
-				for(uint16_t i = 0; i < 256; ++i) {
-					// could potentially do wacky stuff if it gets into the apu/ppu register areas
-					ppu.oam[i] = ramReadByte((byte << 8) + i);
-				}
-			}
+			e.type = EVENT_OAM_DMA_WRITE;
 			break;
 		case 0x4016:
 			controllerLatch = byte & 0x01;
@@ -96,18 +221,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			}
 			break;
 		case 0x2005:
-			if(!ppu.w) {
-				//printf("SCROLLX %02X\n", byte);
-				ppu.t &= ~0x1F;
-				ppu.t |= byte >> 3;
-				ppu.x = byte & 0x7;
-			} else {
-				ppu.t &= ~0x3E0;
-				ppu.t |= (byte & 0xF8) << 2;
-				ppu.t &= ~0x7000;
-				ppu.t |= (byte & 0x7) << 12;
-			}
-			ppu.w = !ppu.w;
+			e.type = EVENT_PPU_SCROLL_WRITE;
 			break;
 		case 0x4000: 
 		case 0x4004: {
@@ -200,36 +314,39 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			// open bus
 			break;
 	}
+	pushRAMEvent(e);
 }
 
 uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
 	if(prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
-		return prgRAM[addr - 0x6000];;
+		return prgRAM[addr - 0x6000];
 	} else if(addr >= 0x6000) {
 		return romReadByte(addr);
 	} else if(addr < 0x800) {
 		return cpuRAM[addr];
 	}
 	switch(addr) {
-		case 0x2002:
-			{
-				// clear vblank flag after it's read
-				uint8_t tmp = ppu.status;
-				ppu.status &= ~PPU_STATUS_VBLANK;
-				ppu.w = 0;
-				return tmp;
-			}
+		case 0x2002: {
+			ramEvent e;
+			e.type = EVENT_PPU_STATUS_READ;
+			//e.delay = cpu.cycles + 1;
+			e.delay = 1;
+			e.addr = addr;
+			e.byte = 0;
+			pushRAMEvent(e);
+			return ppu.status;
+		}
 		case 0x2007: {
 			// https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer
-			uint8_t v = ppu.readBuffer;
-			ppu.readBuffer = ppuRAMRead(ppu.vramAddr%0x4000);
-			if(ppu.control & 0x4) {
-				ppu.vramAddr += 32;
-			} else {
-				ppu.vramAddr += 1;
-			}
-			return v;
+			ramEvent e;
+			e.type = EVENT_PPU_DATA_READ;
+			//e.delay = cpu.cycles + 1;
+			e.delay = 1;
+			e.addr = addr;
+			e.byte = 0;
+			pushRAMEvent(e);
+			return ppu.readBuffer;
 		}
 		case 0x2000:
 		case 0x2001:
