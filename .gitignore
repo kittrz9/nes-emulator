@@ -1,4 +1,5 @@
 *.nes
+*.nsf
 *.fdb
 *.prg
 *.chr

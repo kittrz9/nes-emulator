@@ -7,13 +7,7 @@
 #include "ppu.h"
 #include "cpu.h"
 
-uint8_t* prgROM;
-uint8_t* chrROM;
-
-uint8_t prgRAMEnabled = 0;
-
-size_t prgSize;
-size_t chrSize;
+rom_t rom;
 
 void (*romWriteByte)(uint16_t addr, uint8_t byte);
 uint8_t (*romReadByte)(uint16_t addr);
@@ -33,11 +27,11 @@ float noExpandedAudio(void) {
 void noCounter(void) { return; }
 
 uint8_t chrReadNormal(uint16_t addr) {
-	return chrROM[addr];
+	return rom.chrROM[addr];
 }
 
 void chrWriteNormal(uint16_t addr, uint8_t byte) {
-	chrROM[addr] = byte;
+	rom.chrROM[addr] = byte;
 }
 
 void mapperNoWrite(uint16_t addr, uint8_t byte) {
@@ -49,8 +43,8 @@ void mapperNoWrite(uint16_t addr, uint8_t byte) {
 
 uint8_t nromRead(uint16_t addr) {
 	addr -= 0x8000;
-	if(addr >= 0x4000 && prgSize <= 0x4000) { addr -= 0x4000; }
-	return prgROM[addr];
+	if(addr >= 0x4000 && rom.prgSize <= 0x4000) { addr -= 0x4000; }
+	return rom.prgROM[addr];
 }
 
 // https://www.nesdev.org/wiki/MMC1
@@ -121,25 +115,25 @@ uint8_t mmc1Read(uint16_t addr) {
 			if(newAddr < 0x4000) {
 				newAddr += mmc1.prgBank << 14;
 			} else {
-				newAddr += prgSize - 0x8000;
+				newAddr += rom.prgSize - 0x8000;
 			}
 			break;
 	}
-	return prgROM[newAddr];
+	return rom.prgROM[newAddr];
 }
 
 uint8_t mmc1ChrRead(uint16_t addr) {
 	// probably horribly innacurate and will break for most things
 	// but this works for now
 	// I also haven't encountered an mmc1 rom that doesn't use chr ram
-	if(chrSize == 0) {
+	if(rom.chrSize == 0) {
 		// chr ram
-		return chrROM[addr];
+		return rom.chrROM[addr];
 	} else {
 		if(addr < 0x1000) {
-			return chrROM[addr + mmc1.chrBank0 * 0x1000];
+			return rom.chrROM[addr + mmc1.chrBank0 * 0x1000];
 		} else {
-			return chrROM[addr - 0x1000 + mmc1.chrBank1 * 0x1000];
+			return rom.chrROM[addr - 0x1000 + mmc1.chrBank1 * 0x1000];
 		}
 	}
 }
@@ -155,9 +149,9 @@ void unromWrite(uint16_t addr, uint8_t byte) {
 uint8_t unromRead(uint16_t addr) {
 	addr -= 0x8000;
 	if(addr < 0x4000) {
-		return prgROM[addr + 0x4000 * unromBank];
+		return rom.prgROM[addr + 0x4000 * unromBank];
 	} else {
-		return prgROM[addr + prgSize - 0x8000];
+		return rom.prgROM[addr + rom.prgSize - 0x8000];
 	}
 }
 
@@ -230,31 +224,31 @@ uint8_t mmc3Read(uint16_t addr) {
 		case 0x9:
 			//printf("%02X %02X\n", mmc3.bankSelect, mmc3.r[6]);
 			if(mmc3.bankSelect & 0x40) {
-				return prgROM[newAddr + prgSize - 0x8000];
+				return rom.prgROM[newAddr + rom.prgSize - 0x8000];
 			} else {
-				return prgROM[newAddr + mmc3.r[6] * 0x2000];
+				return rom.prgROM[newAddr + mmc3.r[6] * 0x2000];
 			}
 			exit(1);
 		case 0xA:
 		case 0xB:
 			//printf("%02X %02X\n", mmc3.bankSelect, mmc3.r[7]);
 			newAddr -= 0x2000;
-			return prgROM[newAddr + mmc3.r[7] * 0x2000];
+			return rom.prgROM[newAddr + mmc3.r[7] * 0x2000];
 			exit(1);
 		case 0xC:
 		case 0xD:
 			//printf("%02X %02X\n", mmc3.bankSelect, mmc3.r[mmc3.bankSelect&3]);
 			if(mmc3.bankSelect & 0x40) {
-				return prgROM[newAddr + mmc3.r[6] * 0x2000];
+				return rom.prgROM[newAddr + mmc3.r[6] * 0x2000];
 			} else {
-				return prgROM[newAddr + prgSize - 0x8000];
+				return rom.prgROM[newAddr + rom.prgSize - 0x8000];
 			}
 			exit(1);
 		case 0xE:
 		case 0xF:
-			//printf("%lx\n", prgSize);
-			//printf("%lX\n", newAddr + prgSize - 0x8000);
-			return prgROM[newAddr + prgSize - 0x8000];
+			//printf("%lx\n", rom.prgSize);
+			//printf("%lX\n", newAddr + rom.prgSize - 0x8000);
+			return rom.prgROM[newAddr + rom.prgSize - 0x8000];
 		default:
 			exit(1);
 	}
@@ -264,19 +258,19 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 	if(mmc3.bankSelect & 0x80) {
 		switch((addr >> 8) / 4) {
 			case 0: // 0-3
-				return chrROM[addr + mmc3.r[2] * 0x400];
+				return rom.chrROM[addr + mmc3.r[2] * 0x400];
 			case 1: // 4-7
-				return chrROM[addr - 0x0400 + mmc3.r[3] * 0x400];
+				return rom.chrROM[addr - 0x0400 + mmc3.r[3] * 0x400];
 			case 2: // 8-B
-				return chrROM[addr - 0x0800+ mmc3.r[4] * 0x400];
+				return rom.chrROM[addr - 0x0800+ mmc3.r[4] * 0x400];
 			case 3: // C-F
-				return chrROM[addr - 0x0C00 + mmc3.r[5] * 0x400];
+				return rom.chrROM[addr - 0x0C00 + mmc3.r[5] * 0x400];
 			case 4: // 10-13
 			case 5: // 14-17
-				return chrROM[addr - 0x1000 + (mmc3.r[0]&0xFE) * 0x400];
+				return rom.chrROM[addr - 0x1000 + (mmc3.r[0]&0xFE) * 0x400];
 			case 6: // 18-1B
 			case 7: // 1C-1F
-				return chrROM[addr - 0x1800 + (mmc3.r[1]&0xFE) * 0x400];
+				return rom.chrROM[addr - 0x1800 + (mmc3.r[1]&0xFE) * 0x400];
 			default:
 				printf("ASDFFDSASFD\n");
 				exit(1);
@@ -285,18 +279,18 @@ uint8_t mmc3ChrRead(uint16_t addr) {
 		switch((addr >> 8) / 4) {
 			case 0: // 0-3
 			case 1: // 4-7
-				return chrROM[addr + (mmc3.r[0]&0xFE) * 0x400];
+				return rom.chrROM[addr + (mmc3.r[0]&0xFE) * 0x400];
 			case 2: // 8-B
 			case 3: // C-F
-				return chrROM[addr - 0x0800 + (mmc3.r[1]&0xFE) * 0x400];
+				return rom.chrROM[addr - 0x0800 + (mmc3.r[1]&0xFE) * 0x400];
 			case 4: // 10-13
-				return chrROM[addr - 0x1000 + mmc3.r[2] * 0x400];
+				return rom.chrROM[addr - 0x1000 + mmc3.r[2] * 0x400];
 			case 5: // 14-17
-				return chrROM[addr - 0x1400 + mmc3.r[3] * 0x400];
+				return rom.chrROM[addr - 0x1400 + mmc3.r[3] * 0x400];
 			case 6: // 18-1B
-				return chrROM[addr - 0x1800 + mmc3.r[4] * 0x400];
+				return rom.chrROM[addr - 0x1800 + mmc3.r[4] * 0x400];
 			case 7: // 1C-1F
-				return chrROM[addr - 0x1C00 + mmc3.r[5] * 0x400];
+				return rom.chrROM[addr - 0x1C00 + mmc3.r[5] * 0x400];
 			default:
 				printf("ASDFFDSASFD\n");
 				exit(1);
@@ -346,14 +340,14 @@ uint8_t sunsoft5bRead(uint16_t addr) {
 	if(bank > 3) {
 		// fixed to last bank
 		uint16_t newAddr = addr - 0x8000;
-		return prgROM[newAddr + prgSize - 0x8000];
+		return rom.prgROM[newAddr + rom.prgSize - 0x8000];
 	}
 	uint8_t selectedBank = sunsoft5b.prgBanks[bank] & 0x1F;
 	if(bank == 0) {
 		// prg bank 0, ram/rom
-		return prgROM[addr - 0x6000 + selectedBank*0x2000];
+		return rom.prgROM[addr - 0x6000 + selectedBank*0x2000];
 	} else {
-		return prgROM[addr - 0x8000 - (bank-1)*0x2000 + selectedBank*0x2000];
+		return rom.prgROM[addr - 0x8000 - (bank-1)*0x2000 + selectedBank*0x2000];
 	}
 }
 
@@ -456,7 +450,7 @@ uint8_t sunsoft5bChrRead(uint16_t addr) {
 	uint8_t bank = addr >> 10;
 	addr &= 0x3FF;
 	uint8_t selectedBank = sunsoft5b.chrBanks[bank];
-	return chrROM[addr + selectedBank * 0x400];
+	return rom.chrROM[addr + selectedBank * 0x400];
 }
 
 void sunsoft5bCycleCounter(void) {
@@ -499,9 +493,9 @@ struct {
 
 uint8_t mmc2Read(uint16_t addr) {
 	if(addr < 0xA000) {
-		return prgROM[addr - 0x8000 + 0x2000 * mmc2.prgBank];
+		return rom.prgROM[addr - 0x8000 + 0x2000 * mmc2.prgBank];
 	} else {
-		return prgROM[addr - 0xA000 + prgSize - 0x6000];
+		return rom.prgROM[addr - 0xA000 + rom.prgSize - 0x6000];
 	}
 	return 0;
 }
@@ -539,15 +533,15 @@ uint8_t mmc2ChrRead(uint16_t addr) {
 	}
 	if(addr < 0x1000) {
 		if(mmc2.latch[0] == 0xFD) {
-			return chrROM[addr + mmc2.chrBank[0] * 0x1000];
+			return rom.chrROM[addr + mmc2.chrBank[0] * 0x1000];
 		} else if(mmc2.latch[0] == 0xFE) {
-			return chrROM[addr + mmc2.chrBank[1] * 0x1000];
+			return rom.chrROM[addr + mmc2.chrBank[1] * 0x1000];
 		}
 	} else {
 		if(mmc2.latch[1] == 0xFD) {
-			return chrROM[addr - 0x1000 + mmc2.chrBank[2] * 0x1000];
+			return rom.chrROM[addr - 0x1000 + mmc2.chrBank[2] * 0x1000];
 		} else if(mmc2.latch[1] == 0xFE) {
-			return chrROM[addr - 0x1000 + mmc2.chrBank[3] * 0x1000];
+			return rom.chrROM[addr - 0x1000 + mmc2.chrBank[3] * 0x1000];
 		}
 	}
 }
@@ -555,7 +549,7 @@ uint8_t mmc2ChrRead(uint16_t addr) {
 uint8_t anromBank;
 
 uint8_t anromReadByte(uint16_t addr) {
-	return prgROM[addr - 0x8000 + anromBank*0x8000];
+	return rom.prgROM[addr - 0x8000 + anromBank*0x8000];
 }
 
 void anromWriteByte(uint16_t addr, uint8_t byte) {
@@ -577,7 +571,7 @@ void setMapper(uint16_t id) {
 			scanlineCounter = noCounter;
 			cycleCounter = noCounter;
 			expandedAudioGetSample = noExpandedAudio;
-			prgRAMEnabled = 1;
+			rom.prgRAMEnabled = 1;
 			break;
 		case 0x01:
 			romReadByte = mmc1Read;
@@ -589,7 +583,7 @@ void setMapper(uint16_t id) {
 			expandedAudioGetSample = noExpandedAudio;
 			mmc1.shiftReg = 0x10;
 			mmc1.control = 0x0C;
-			prgRAMEnabled = 1;
+			rom.prgRAMEnabled = 1;
 			break;
 		case 0x02:
 			romReadByte = unromRead;
@@ -599,7 +593,7 @@ void setMapper(uint16_t id) {
 			scanlineCounter = noCounter;
 			cycleCounter = noCounter;
 			expandedAudioGetSample = noExpandedAudio;
-			prgRAMEnabled = 1;
+			rom.prgRAMEnabled = 1;
 			break;
 		case 0x04:
 			romReadByte = mmc3Read;
@@ -609,7 +603,7 @@ void setMapper(uint16_t id) {
 			scanlineCounter = mmc3ScanlineCounter;
 			cycleCounter = noCounter;
 			expandedAudioGetSample = noExpandedAudio;
-			prgRAMEnabled = 1;
+			rom.prgRAMEnabled = 1;
 			break;
 		case 0x45:
 			romReadByte = sunsoft5bRead;
@@ -619,7 +613,7 @@ void setMapper(uint16_t id) {
 			scanlineCounter = noCounter;
 			cycleCounter = sunsoft5bCycleCounter;
 			expandedAudioGetSample = sunsoft5bGetSample;
-			prgRAMEnabled = 0;
+			rom.prgRAMEnabled = 0;
 			break;
 		case 0x09:
 			romReadByte = mmc2Read;
@@ -629,7 +623,7 @@ void setMapper(uint16_t id) {
 			scanlineCounter = noCounter;
 			cycleCounter = noCounter;
 			expandedAudioGetSample = noExpandedAudio;
-			prgRAMEnabled = 0;
+			rom.prgRAMEnabled = 0;
 			break;
 		case 0x07:
 			romReadByte = anromReadByte;
@@ -639,7 +633,7 @@ void setMapper(uint16_t id) {
 			scanlineCounter = noCounter;
 			cycleCounter = noCounter;
 			expandedAudioGetSample = noExpandedAudio;
-			prgRAMEnabled = 0;
+			rom.prgRAMEnabled = 0;
 			break;
 		default:
 			printf("unsupported mapper %02X\n", id);

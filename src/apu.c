@@ -207,17 +207,15 @@ float noiseGetSample(void) {
 }
 
 // https://www.nesdev.org/wiki/APU_Triangle
-uint8_t triLUT[] = {
-	15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,  0,
-	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
+#define TRI_SAMPLE(x) (((x/15.0f)-0.5f)/8.0f)
+float triLUT[] = {
+	TRI_SAMPLE(15), TRI_SAMPLE(14), TRI_SAMPLE(13), TRI_SAMPLE(12), TRI_SAMPLE(11), TRI_SAMPLE(10),  TRI_SAMPLE(9),  TRI_SAMPLE(8),  TRI_SAMPLE(7),  TRI_SAMPLE(6),  TRI_SAMPLE(5),  TRI_SAMPLE(4),  TRI_SAMPLE(3),  TRI_SAMPLE(2),  TRI_SAMPLE(1),  TRI_SAMPLE(0),
+	 TRI_SAMPLE(0),  TRI_SAMPLE(1),  TRI_SAMPLE(2),  TRI_SAMPLE(3),  TRI_SAMPLE(4),  TRI_SAMPLE(5),  TRI_SAMPLE(6),  TRI_SAMPLE(7),  TRI_SAMPLE(8),  TRI_SAMPLE(9), TRI_SAMPLE(10), TRI_SAMPLE(11), TRI_SAMPLE(12), TRI_SAMPLE(13), TRI_SAMPLE(14), TRI_SAMPLE(15),
 };
 
 float triGetSample(void) {
-	// this should ideally be changed
-	// the triangle wave should be silenced when the timer period is too low by being cut off by the high pass filter
-	// however I don't want to deal with fft stuff and any issues from potentially not being able to write samples fast enough because it's doing signal processing
 	if(apu.tri.timerPeriod == 0) { return 0.0f; }
-	return ((triLUT[apu.tri.progress]/15.0f)-0.5f)/8.0f;
+	return triLUT[apu.tri.progress];
 }
 
 float dmcGetSample(void) {

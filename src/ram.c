@@ -27,7 +27,7 @@ uint16_t addrMap(uint16_t addr) {
 }
 void ramWriteByte(uint16_t addr, uint8_t byte) {
 	addr = addrMap(addr);
-	if(prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
+	if(rom.prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
 		prgRAM[addr - 0x6000] = byte;
 		return;
 	} else if(addr >= 0x6000) {
@@ -204,7 +204,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 
 uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
-	if(prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
+	if(rom.prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
 		return prgRAM[addr - 0x6000];;
 	} else if(addr >= 0x6000) {
 		return romReadByte(addr);
