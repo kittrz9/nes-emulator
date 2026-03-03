@@ -27,6 +27,12 @@ uint16_t addrMap(uint16_t addr) {
 }
 void ramWriteByte(uint16_t addr, uint8_t byte) {
 	addr = addrMap(addr);
+	// jank, needs to be changed eventually
+	if(rom.isNSF && addr >= 0x5FF8 && addr <= 0x5FFF) {
+		romWriteByte(addr, byte);
+		return;
+	}
+
 	if(rom.prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
 		prgRAM[addr - 0x6000] = byte;
 		return;

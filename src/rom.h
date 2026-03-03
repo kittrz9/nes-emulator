@@ -24,6 +24,7 @@ typedef struct rom_t {
 
 extern rom_t rom;
 
+void setNSFMapper(uint8_t* banks, uint8_t audioExpansion);
 void setMapper(uint16_t id);
 
 // probably should get better names for these that aren't so similar to the ram functions

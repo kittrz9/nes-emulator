@@ -561,6 +561,41 @@ void anromWriteByte(uint16_t addr, uint8_t byte) {
 	}
 }
 
+uint8_t nsfBanks[8];
+uint8_t nsfRead(uint16_t addr) {
+	addr -= 0x8000;
+	uint8_t bank = nsfBanks[addr>>12];
+	addr &= 0x0FFF;
+	return rom.prgROM[addr + bank*0x1000];
+}
+
+void nsfWrite(uint16_t addr, uint8_t byte) {
+	if(addr < 0x5FF8 || addr > 0x5FFF) { return; }
+	printf("%04X %02X\n", addr, byte);
+	nsfBanks[addr & 0x7] = byte;
+}
+
+// separate function since it takes different args
+void setNSFMapper(uint8_t* banks, uint8_t audioExpansion) {
+	romReadByte = nromRead;
+	for(uint8_t i = 0; i < 8; ++i) {
+		if(banks[i] != 0) {
+			romReadByte = nsfRead;
+			break;
+		}
+	}
+	memcpy(nsfBanks, banks, sizeof(nsfBanks));
+	romWriteByte = nsfWrite;
+	chrReadByte = chrReadNormal;
+	chrWriteByte = mapperNoWrite;
+	scanlineCounter = noCounter;
+	cycleCounter = noCounter;
+	rom.prgRAMEnabled = 0;
+
+	// needs to be changed
+	expandedAudioGetSample = noExpandedAudio;
+}
+
 void setMapper(uint16_t id) {
 	switch(id) {
 		case 0x00:

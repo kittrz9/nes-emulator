@@ -85,29 +85,32 @@ uint8_t loadROM(const char* path) {
 		// nsf
 		rom.isNSF = 1;
 		nsfHeader* header = (nsfHeader*)fileBuffer;
-		for(uint8_t i = 0; i < 8; ++i) {
+		/*for(uint8_t i = 0; i < 8; ++i) {
 			if(header->bankSwitchValues[i] != 0) {
 				printf("nsf bankswitching unimplemented\n");
 				exit(1);
 			}
-		}
+		}*/
 		printf("song name: %s\n", header->songName);
 		printf("author name: %s\n", header->songAuthor);
 
 		memcpy(rom.nsfSongName, header->songName, 32);
 		memcpy(rom.nsfSongAuthor, header->songAuthor, 32);
 		memcpy(rom.nsfSongCopyright, header->songCopyright, 32);
-		rom.prgSize = 0x8000;
-		rom.chrSize = 0x2000;
-		rom.prgROM = malloc(rom.prgSize);
-		rom.chrROM = malloc(rom.chrSize);
 		rom.nsfLoadAddr = (header->dataLoadHigh << 8) | header->dataLoadLow;
 		rom.nsfInitAddr = (header->dataInitHigh << 8) | header->dataInitLow;
 		rom.nsfPlayAddr = (header->dataPlayHigh << 8) | header->dataPlayLow;
 		rom.nsfSpeed = (header->playSpeedHigh << 8) | header->playSpeedLow;
 
+		rom.prgSize = fileSize-0x80 + (rom.nsfLoadAddr - 0x8000);
+		rom.chrSize = 0x2000;
+		rom.prgROM = malloc(rom.prgSize);
+		rom.chrROM = malloc(rom.chrSize);
+		// there's something to do with padding shenanigans specifically if the nsf file uses bank switching
+		// not gonna deal with that for now lmao, I don't have any nsf files that do that to test it with right now
+		printf("%04X %04X %04X\n", rom.nsfLoadAddr, rom.nsfInitAddr, rom.nsfPlayAddr);
 		memcpy(rom.prgROM + rom.nsfLoadAddr - 0x8000, fileBuffer+0x80, fileSize-0x80);
-		setMapper(0);
+		setNSFMapper(header->bankSwitchValues, header->audioExpansion);
 
 		free(fileBuffer);
 		return 0;
