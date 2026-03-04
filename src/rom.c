@@ -571,7 +571,6 @@ uint8_t nsfRead(uint16_t addr) {
 
 void nsfWrite(uint16_t addr, uint8_t byte) {
 	if(addr < 0x5FF8 || addr > 0x5FFF) { return; }
-	printf("%04X %02X\n", addr, byte);
 	nsfBanks[addr & 0x7] = byte;
 }
 

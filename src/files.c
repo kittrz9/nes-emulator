@@ -60,7 +60,7 @@ typedef struct {
 	uint8_t region;
 	uint8_t audioExpansion;
 	uint8_t reserved;
-	uint8_t dataLength;
+	uint8_t dataLength[3];
 } nsfHeader;
 
 uint8_t loadROM(const char* path) {
@@ -108,7 +108,6 @@ uint8_t loadROM(const char* path) {
 		rom.chrROM = malloc(rom.chrSize);
 		// there's something to do with padding shenanigans specifically if the nsf file uses bank switching
 		// not gonna deal with that for now lmao, I don't have any nsf files that do that to test it with right now
-		printf("%04X %04X %04X\n", rom.nsfLoadAddr, rom.nsfInitAddr, rom.nsfPlayAddr);
 		memcpy(rom.prgROM + rom.nsfLoadAddr - 0x8000, fileBuffer+0x80, fileSize-0x80);
 		setNSFMapper(header->bankSwitchValues, header->audioExpansion);
 
