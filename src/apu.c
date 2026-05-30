@@ -17,7 +17,7 @@
 SDL_AudioStream* stream = NULL;
 
 #define CPU_FREQ 1789773
-#define SAMPLE_RATE 44100
+#define SAMPLE_RATE 48000
 #define BUFFER_SIZE SAMPLE_RATE/20
 
 struct envStruct {
@@ -169,52 +169,51 @@ uint8_t pulseDutyCycleLUT[] = {
 	0x0F,
 	0xFC,
 };
-float pulseGetSample(uint8_t index) {
-	if(apu.pulse[index].mute) { return 0.0f; }
+uint8_t pulseGetSample(uint8_t index) {
+	if(apu.pulse[index].mute) { return 0; }
 	if(apu.pulse[index].counter != 0 && apu.pulse[index].timerPeriod > 8) {
-		float output;
+		uint8_t output;
 		if(apu.pulse[index].env.constantVolFlag) {
-			output = apu.pulse[index].env.volume/512.0f;
+			output = apu.pulse[index].env.volume;
 		} else {
-			output = apu.pulse[index].env.decayCounter/512.0f;
+			output = apu.pulse[index].env.decayCounter;
 		}
 		if((pulseDutyCycleLUT[apu.pulse[index].duty] >> apu.pulse[index].dutyCycleProgress) & 1) {
-			output *= -1.0f;
+			output = 0;
 		}
 		return output;
 	}
-	return 0.0f;
+	return 0;
 }
 
 // https://www.nesdev.org/wiki/APU_Noise
 uint16_t noiseTimerLUT[] = {
 	4/2, 8/2, 16/2, 32/2, 64/2, 96/2, 128/2, 160/2, 202/2, 254/2, 380/2, 508/2, 762/2, 1016/2, 2034/2, 4068/2
 };
-float noiseGetSample(void) {
+uint8_t noiseGetSample(void) {
 	if(apu.noise.counter > 0) {
-		float output;
+		uint8_t output;
 		if(apu.noise.env.constantVolFlag) {
-			output = (apu.noise.env.volume/512.0);
+			output = apu.noise.env.volume;
 		} else {
-			output = (apu.noise.env.decayCounter/512.0);
+			output = apu.noise.env.decayCounter;
 		}
 		if((apu.noise.lfsr & 1) == 0) {
-			output *= -1.0f;
+			output = 0;
 		}
 		return output;
 	}
-	return 0.0f;
+	return 0;
 }
 
 // https://www.nesdev.org/wiki/APU_Triangle
-#define TRI_SAMPLE(x) (((x/15.0f)-0.5f)/8.0f)
-float triLUT[] = {
-	TRI_SAMPLE(15), TRI_SAMPLE(14), TRI_SAMPLE(13), TRI_SAMPLE(12), TRI_SAMPLE(11), TRI_SAMPLE(10),  TRI_SAMPLE(9),  TRI_SAMPLE(8),  TRI_SAMPLE(7),  TRI_SAMPLE(6),  TRI_SAMPLE(5),  TRI_SAMPLE(4),  TRI_SAMPLE(3),  TRI_SAMPLE(2),  TRI_SAMPLE(1),  TRI_SAMPLE(0),
-	 TRI_SAMPLE(0),  TRI_SAMPLE(1),  TRI_SAMPLE(2),  TRI_SAMPLE(3),  TRI_SAMPLE(4),  TRI_SAMPLE(5),  TRI_SAMPLE(6),  TRI_SAMPLE(7),  TRI_SAMPLE(8),  TRI_SAMPLE(9), TRI_SAMPLE(10), TRI_SAMPLE(11), TRI_SAMPLE(12), TRI_SAMPLE(13), TRI_SAMPLE(14), TRI_SAMPLE(15),
+uint8_t triLUT[] = {
+	15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,  0,
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
 };
 
-float triGetSample(void) {
-	if(apu.tri.timerPeriod == 0) { return 0.0f; }
+uint8_t triGetSample(void) {
+	if(apu.tri.timerPeriod == 0) { return 0; }
 	return triLUT[apu.tri.progress];
 }
 
@@ -443,12 +442,23 @@ void apuStep(void) {
 	// need to do actual resampling at some point instead of this lmao
 	if(apu.cycles % (CPU_FREQ/SAMPLE_RATE) == 0) {
 		if(currentSample < BUFFER_SIZE) {
+			// https://www.nesdev.org/wiki/APU_Mixer
+			float pulseOut = 0.0f;
+			uint8_t pulseSample = pulseGetSample(0) + pulseGetSample(1);
+			if(pulseSample != 0) {
+				pulseOut = 95.88f / ((8128.0f / pulseSample) + 100.0f);
+			}
+
+			// linear approximation
+			float triNoiseDMCOut = 0.00851 * triGetSample() + 0.00494 * noiseGetSample() + 0.00335 * apu.dmc.output;
 			samples[currentSample] = 0.0f;
-			samples[currentSample] += pulseGetSample(0);
-			samples[currentSample] += pulseGetSample(1);
-			samples[currentSample] += noiseGetSample();
+			/*samples[currentSample] += pulseGetSample(0);
+			samples[currentSample] += pulseGetSample(1);*/
+			samples[currentSample] += pulseOut;
+			/*samples[currentSample] += noiseGetSample();
 			samples[currentSample] += triGetSample();
-			samples[currentSample] += dmcGetSample();
+			samples[currentSample] += dmcGetSample();*/
+			samples[currentSample] += triNoiseDMCOut;
 			samples[currentSample] += expandedAudioGetSample();
 			++currentSample;
 		} else {
