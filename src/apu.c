@@ -450,7 +450,25 @@ void apuStep(void) {
 			}
 
 			// linear approximation
-			float triNoiseDMCOut = 0.00851 * triGetSample() + 0.00494 * noiseGetSample() + 0.00335 * apu.dmc.output;
+			float triOut = 0.0f;
+			uint8_t triSample = triGetSample();
+			if(triSample != 0) {
+				triOut = triSample/8227.0f;
+			}
+
+			float noiseOut = 0.0f;
+			uint8_t noiseSample = noiseGetSample();
+			if(noiseSample != 0) {
+				noiseOut = noiseSample/12241.0f;
+			}
+
+			float dmcOut = 0.0f;
+			if(apu.dmc.output != 0) {
+				dmcOut = apu.dmc.output/22638.0f;
+			}
+
+			float triNoiseDMCOut = 159.79 / (1/(triOut+noiseOut+dmcOut) + 100.0f);
+			//float triNoiseDMCOut = 0.00851 * triGetSample() + 0.00494 * noiseGetSample() + 0.00335 * apu.dmc.output;
 			samples[currentSample] = 0.0f;
 			/*samples[currentSample] += pulseGetSample(0);
 			samples[currentSample] += pulseGetSample(1);*/
