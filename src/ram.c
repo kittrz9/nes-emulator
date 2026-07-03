@@ -8,6 +8,7 @@
 #include "ppu.h"
 #include "apu.h"
 #include "input.h"
+#include "dma.h"
 
 uint8_t cpuRAM[0x800];
 
@@ -87,13 +88,15 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
 			break;
 		case 0x4014:
-			{
+			oamDMAStart(byte);
+			break;
+			/*{
 				for(uint16_t i = 0; i < 256; ++i) {
 					// could potentially do wacky stuff if it gets into the apu/ppu register areas
 					ppu.oam[i] = ramReadByte((byte << 8) + i);
 				}
 			}
-			break;
+			break;*/
 		case 0x4016:
 			controllerLatch = byte & 0x01;
 			if(controllerLatch) {

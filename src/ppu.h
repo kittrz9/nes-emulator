@@ -49,7 +49,7 @@ typedef struct {
 	uint8_t control;
 	uint8_t mask;
 	uint8_t status;
-	uint16_t oamAddr;
+	uint8_t oamAddr;
 	uint16_t vramAddr;
 	uint16_t t;
 	uint8_t x;

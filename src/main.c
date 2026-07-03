@@ -10,11 +10,17 @@
 #include "apu.h"
 #include "input.h"
 #include "nsf.h"
+#include "dma.h"
 
 int nesMain(void) {
 	while(1) {
-		cpuStep();
+		if(!dmaActive) {
+			cpuStep();
+		} else {
+			dmaStep();
+		}
 		for(uint8_t i = 0; i < cpu.cycles; ++i) {
+			dmaCycle = !dmaCycle;
 			cycleCounter();
 			apuStep();
 			for(uint8_t j = 0; j < 3; ++j) {
