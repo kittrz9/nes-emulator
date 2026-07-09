@@ -14,6 +14,9 @@ uint8_t cpuRAM[0x800];
 
 uint8_t prgRAM[0x2000];
 
+uint8_t ramDataBus;
+uint8_t ppuDataBus;
+
 // https://www.nesdev.org/wiki/CPU_memory_map
 uint16_t addrMap(uint16_t addr) {
 	// weird ram mirroring
@@ -27,6 +30,7 @@ uint16_t addrMap(uint16_t addr) {
 	return addr;
 }
 void ramWriteByte(uint16_t addr, uint8_t byte) {
+	ramDataBus = byte;
 	addr = addrMap(addr);
 	// jank, needs to be changed eventually
 	if(rom.isNSF && addr >= 0x5FF8 && addr <= 0x5FFF) {
@@ -46,6 +50,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 	}
 	switch(addr) {
 		case 0x2000:
+			ppuDataBus = byte;
 			//printf("%04X %i %02X\n", cpu.pc, ppu.currentPixel / 340, byte);
 			if(byte & PPU_CTRL_ENABLE_VBLANK && (ppu.control & PPU_CTRL_ENABLE_VBLANK) == 0 && ppu.status & PPU_STATUS_VBLANK) {
 				ppu.nmiHappened = 0;
@@ -56,16 +61,24 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			ppu.t |= (byte & 3) << 10;
 			break;
 		case 0x2001:
+			ppuDataBus = byte;
 			ppu.mask = byte;
 			break;
+		case 0x2002:
+			// read only
+			ppuDataBus = byte;
+			break;
 		case 0x2003:
+			ppuDataBus = byte;
 			ppu.oamAddr = byte;
 			break;
 		case 0x2004:
+			ppuDataBus = byte;
 			ppu.oam[ppu.oamAddr] = byte;
 			++ppu.oamAddr;
 			break;
 		case 0x2006:
+			ppuDataBus = byte;
 			//*((uint8_t*)&ppu.vramAddr + (1 - ppu.w)) = byte;
 			if(!ppu.w) {
 				ppu.t &= ~0xFF00;
@@ -81,6 +94,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			ppu.w = !ppu.w;
 			break;
 		case 0x2007:
+			ppuDataBus = byte;
 			#ifdef DEBUG
 				printf("writing %02X into ppu %04X\n", byte, ppu.vramAddr);
 			#endif
@@ -88,6 +102,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			ppu.vramAddr += (ppu.control & 0x04 ? 32 : 1);
 			break;
 		case 0x4014:
+			ppuDataBus = byte;
 			oamDMAStart(byte);
 			break;
 			/*{
@@ -105,6 +120,7 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			}
 			break;
 		case 0x2005:
+			ppuDataBus = byte;
 			if(!ppu.w) {
 				//printf("SCROLLX %02X\n", byte);
 				ppu.t &= ~0x1F;
@@ -169,7 +185,6 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 			noiseSetConstVolFlag(byte & 0x10);
 			noiseSetLoop(byte & 0x20);
 			break;
-		case 0x2002:
 		case 0x4009:
 		case 0x400D:
 			#ifdef DEBUG
@@ -214,67 +229,86 @@ void ramWriteByte(uint16_t addr, uint8_t byte) {
 uint8_t ramReadByte(uint16_t addr) {
 	addr = addrMap(addr);
 	if(rom.prgRAMEnabled && addr >= 0x6000 && addr < 0x8000) {
-		return prgRAM[addr - 0x6000];;
+		ramDataBus = prgRAM[addr - 0x6000];;
 	} else if(addr >= 0x6000) {
-		return romReadByte(addr);
+		ramDataBus = romReadByte(addr);
 	} else if(addr < 0x800) {
-		return cpuRAM[addr];
-	}
-	switch(addr) {
-		case 0x2002:
-			{
-				// clear vblank flag after it's read
-				uint8_t tmp = ppu.status;
-				ppu.status &= ~PPU_STATUS_VBLANK;
-				ppu.w = 0;
-				return tmp;
+		ramDataBus = cpuRAM[addr];
+	} else {
+		switch(addr) {
+			case 0x2002:
+				{
+					// clear vblank flag after it's read
+					uint8_t tmp = ppu.status | (ppuDataBus & 0x1F);
+					ppuDataBus |= ppu.status & 0xE0;
+					ppu.status &= ~PPU_STATUS_VBLANK;
+					ppu.w = 0;
+					ramDataBus = tmp;
+					ppuDataBus &= 0x1F;
+					break;
+				}
+			case 0x2007: {
+				// https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer
+				uint8_t v = ppu.readBuffer;
+				ppuDataBus = ppu.readBuffer;
+				// blindly trusting accuracycoin here, I think this is dependant on what revision of the ppu you have
+				if(ppu.vramAddr < 0x3f00) {
+					ppu.readBuffer = ppuRAMRead(ppu.vramAddr);
+				} else {
+					v = ppuRAMRead(ppu.vramAddr);
+					ppu.readBuffer = ppuRAMRead(ppu.vramAddr - 0x1000);
+				}
+				if(ppu.control & 0x4) {
+					ppu.vramAddr += 32;
+				} else {
+					ppu.vramAddr += 1;
+				}
+				ramDataBus = v;
+				break;
 			}
-		case 0x2007: {
-			// https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer
-			uint8_t v = ppu.readBuffer;
-			ppu.readBuffer = ppuRAMRead(ppu.vramAddr%0x4000);
-			if(ppu.control & 0x4) {
-				ppu.vramAddr += 32;
-			} else {
-				ppu.vramAddr += 1;
-			}
-			return v;
+			case 0x2004:
+			case 0x2000:
+			case 0x2001:
+			case 0x2003:
+			case 0x2005:
+			case 0x2006:
+			case 0x4014:
+				ramDataBus = ppuDataBus;
+				break;
+			case 0x4000:
+			case 0x4001:
+			case 0x4002:
+			case 0x4003:
+			case 0x4004:
+			case 0x4005:
+			case 0x4006:
+			case 0x4007:
+			case 0x4008:
+			case 0x4009:
+			case 0x4010:
+			case 0x4011:
+			case 0x4012:
+			case 0x4013:
+				#ifdef DEBUG
+					printf("reading ppu/apu register %02X isn't implemented\n", addr);
+				#endif
+				break;
+			case 0x4015:
+				// does not update the data bus
+				return apuGetStatus() | (ramDataBus & 0x20);
+			case 0x4016:
+				ramDataBus &= 0xE0;
+				ramDataBus |= pollController(0) & 0x1F;
+				break;
+			case 0x4017:
+				ramDataBus &= 0xE0;
+				ramDataBus |= pollController(1) & 0x1F;
+				break;
+			default:
+				// open bus
+				//printf("OPEN BUS! %04X %02X\n", addr, ramDataBus);
+				break;
 		}
-		case 0x2000:
-		case 0x2001:
-		case 0x2003:
-		case 0x2004:
-		case 0x2005:
-		case 0x2006:
-		case 0x4000:
-		case 0x4001:
-		case 0x4002:
-		case 0x4003:
-		case 0x4004:
-		case 0x4005:
-		case 0x4006:
-		case 0x4007:
-		case 0x4008:
-		case 0x4009:
-		case 0x4010:
-		case 0x4011:
-		case 0x4012:
-		case 0x4013:
-		case 0x4014:
-			#ifdef DEBUG
-				printf("reading ppu/apu register %02X isn't implemented\n", addr);
-			#endif
-			break;
-		case 0x4015:
-			return apuGetStatus();
-			break;
-		case 0x4016:
-			return pollController(0);
-		case 0x4017:
-			return pollController(1);;
-		default:
-			// open bus
-			return 0;
 	}
-	return 0;
+	return ramDataBus;
 }

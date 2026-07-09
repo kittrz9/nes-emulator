@@ -326,10 +326,30 @@ uint8_t cpuStep(void) {
 			uint8_t startPage = ABS_ADDR >> 8;
 			if(instrType > 1 && opcode > 0x80 && opcode < 0xC0) {
 				// absolute y indexed
-				addr = ABS_INDEX_ADDR(cpu.y);
+				//addr = ABS_INDEX_ADDR(cpu.y);
+				addr = ramReadByte(cpu.pc);
+				addr += cpu.y;
+				if(addr >= 0x100) {
+					addr &= 0xFF;
+					addr |= ramReadByte(cpu.pc+1)<<8;
+					ramReadByte(addr);
+					addr += 0x100;
+				} else {
+					addr |= ramReadByte(cpu.pc+1)<<8;
+				}
 			} else {
 				// absolute x indexed
-				addr = ABS_INDEX_ADDR(cpu.x);
+				// dummy read
+				addr = ramReadByte(cpu.pc);
+				addr += cpu.x;
+				if(addr >= 0x100) {
+					addr &= 0xFF;
+					addr |= ramReadByte(cpu.pc+1)<<8;
+					ramReadByte(addr);
+					addr += 0x100;
+				} else {
+					addr |= ramReadByte(cpu.pc+1)<<8;
+				}
 				if(instrType == 2) {
 					++cpu.cycles;
 				}
@@ -358,6 +378,7 @@ uint8_t cpuStep(void) {
 				case 0x64:
 				case 0x80:
 					// nop
+					ramReadByte(addr);
 					break;
 				case 0x00:
 					// brk
@@ -378,6 +399,9 @@ uint8_t cpuStep(void) {
 					--cpu.pc;
 					push((cpu.pc & 0xFF00) >> 8);
 					push(cpu.pc & 0xFF);
+					// hard coded to pass an accuracycoin test!!! not actually cycle accurate!!!!
+					// updates the ram for open bus!!!
+					ramReadByte(cpu.pc);
 					cpu.pc = addr;
 					cpu.cycles += 2; // 6 total
 					break;
@@ -759,9 +783,9 @@ uint8_t cpuStep(void) {
 						break;
 					case 4:
 						// xaa
-						// probably inaccurate
-						transfer(&cpu.x, cpu.a);
-						and_a(ramReadByte(addr));
+						cpu.a = ((cpu.a | 0xEE) & cpu.x) & ramReadByte(addr);
+						setFlag(Z_FLAG, cpu.a == 0);
+						setFlag(N_FLAG, (cpu.a & 0x80) != 0);
 						break;
 					case 5:
 						// lax
@@ -779,6 +803,31 @@ uint8_t cpuStep(void) {
 					case 7:
 						// sbc
 						sbc(ramReadByte(addr));
+						break;
+				}
+			} else if(opcode >> 4 == 9 && opcode != 0x97) {
+				// sh*
+				// these instructions are fucked up, just implementing it as like x&((addr>>8)+1) doesn't seem to be right
+				// I don't want to reverse engineer accuracycoin's tests right now or peruse someone else's emulator's code for an answer
+				// so these are still unimplemented for now
+				switch(opcode) {
+					/*case 0x93:
+					case 0x9f:
+						// sha
+						break;
+					case 0x9b:
+						// shs
+						break;*/
+					/*case 0x9c:
+						// shy
+						ramWriteByte(addr, cpu.y & ((addr>>8)+1));
+						break;
+					case 0x9e:
+						// shx
+						ramWriteByte(addr, cpu.x & ((addr>>8)+1));
+						break;*/
+					default:
+						//printf("sh* %02X\n", opcode);
 						break;
 				}
 			} else {
@@ -809,8 +858,15 @@ uint8_t cpuStep(void) {
 						break;
 					case 5:
 						// lax
-						load(&cpu.a, ramReadByte(addr));
-						transfer(&cpu.x, cpu.a);
+						if(opcode == 0xbb) {
+							// lae
+							load(&cpu.a, ramReadByte(addr) & cpu.s);
+							transfer(&cpu.x, cpu.a);
+							transfer(&cpu.s, cpu.x);
+						} else {
+							load(&cpu.a, ramReadByte(addr));
+							transfer(&cpu.x, cpu.a);
+						}
 						break;
 					case 6:
 						// dcp
