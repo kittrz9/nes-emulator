@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "files.h"
 #include "ram.h"
@@ -24,7 +25,7 @@ int nesMain(void) {
 			cycleCounter();
 			apuStep();
 			for(uint8_t j = 0; j < 3; ++j) {
-				if(ppu.currentPixel == 0) {
+				if(ppu.currentPixel == 340*241) { // fm2 tasses expect input on vblank instead of frame start I think
 					if(handleInput() != 0) { return 1; }
 				}
 				ppuStep();
@@ -42,7 +43,29 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	if(loadROM(argv[1]) != 0) {
+	char* romPath = NULL;
+	char* tasPath = NULL;
+
+	for(uint32_t i = 1; i < argc; ++i) {
+		if(strcmp(argv[i], "-t") == 0) {
+			++i;
+			if(i >= argc) { break; }
+			tasPath = argv[i];
+		} else {
+			romPath = argv[i];
+		}
+	}
+
+	if(romPath == NULL) {
+		return 1;
+	}
+
+	if(tasPath != NULL) {
+		printf("%s\n", tasPath);
+		loadTas(tasPath);
+	}
+
+	if(loadROM(romPath) != 0) {
 		return 1;
 	}
 
